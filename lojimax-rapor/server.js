@@ -188,7 +188,7 @@ const CSS = `
   header{background:linear-gradient(135deg,#0d1b6e,#1a3a8f);color:white;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 3px 10px rgba(0,0,0,0.3);}
   .header-left{display:flex;align-items:center;gap:12px;}
   .logo{width:144px;height:144px;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
-  .logo-text h1{font-size:18px;letter-spacing:3px;font-weight:700;} .logo-text p{font-size:9px;opacity:0.55;letter-spacing:1px;margin-top:1px;}
+  .logo-text h1{font-size:24px;letter-spacing:3px;font-weight:800;} .logo-text p{font-size:13px;opacity:0.8;letter-spacing:2px;margin-top:3px;font-weight:500;}
   .header-right{display:flex;align-items:center;gap:18px;}
   .user-badge{background:rgba(255,255,255,0.12);border-radius:8px;padding:6px 14px;font-size:11px;letter-spacing:0.5px;}
   .logout-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;padding:6px 14px;border-radius:7px;font-size:11px;cursor:pointer;text-decoration:none;transition:all 0.2s;}
@@ -335,14 +335,18 @@ const CSS = `
   .contact-val a{color:#1a3a8f;text-decoration:none;}
   .contact-val a:hover{text-decoration:underline;}
   /* SIDEBAR TOGGLE */
-  .mob-menu-btn{display:flex;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;transition:background 0.2s;}
+  .mob-menu-btn{display:none;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;transition:background 0.2s;}
   .mob-menu-btn:hover{background:rgba(255,255,255,0.22);}
+  .side-toggle-tab{position:fixed;z-index:200;background:white;border:1.5px solid #c5cae9;border-left:none;border-radius:0 10px 10px 0;width:18px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:3px 0 10px rgba(0,0,0,0.1);transition:left 0.25s ease,top 0.1s;color:#1a3a8f;font-size:11px;outline:none;padding:0;font-weight:700;}
+  .side-toggle-tab:hover{background:#e8eaf6;}
   aside{width:240px;background:white;box-shadow:2px 0 8px rgba(0,0,0,0.06);padding:20px 0;flex-shrink:0;overflow-y:auto;overflow-x:hidden;transition:width 0.25s ease,padding 0.25s ease;}
   aside.closed{width:0;padding:0;}
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;}
   .sidebar-overlay.open{display:block;}
   @media(max-width:768px){
     header{padding:10px 14px;}
+    .mob-menu-btn{display:flex;}
+    .side-toggle-tab{display:none!important;}
     .logo{width:52px;height:52px;} .logo img{width:52px!important;height:52px!important;}
     .logo-text h1{font-size:15px;letter-spacing:2px;} .logo-text p{display:none;}
     .user-badge{display:none;}
@@ -440,9 +444,9 @@ function layout(title, breadcrumb, body, sess) {
 <body>
 <header>
   <div class="header-left">
-    <button class="mob-menu-btn" onclick="toggleSidebar()" aria-label="Menü">☰</button>
+    <button class="mob-menu-btn" onclick="toggleSidebar()" aria-label="Menü">◄</button>
     <div class="logo"><img src="/logo" style="width:144px;height:144px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:22px;font-weight:900;color:white;&quot;>L</span>')"></div>
-    <div class="logo-text"><h1>LOJİMAX</h1><p>RAPORLAMA SİSTEMİ</p></div>
+    <div class="logo-text"><h1>LOJIMAX</h1><p>RAPORLAMA SISTEMI</p></div>
   </div>
   <div class="header-right">
     <span class="user-badge">👤 ${sess.user}${sess.role === 'admin' ? ' &nbsp;<span style="font-size:9px;opacity:0.6;">ADMİN</span>' : ''}</span>
@@ -463,6 +467,7 @@ function layout(title, breadcrumb, body, sess) {
     </div>
     ${adminSidebar}
   </aside>
+  <button class="side-toggle-tab" id="sideToggleTab" onclick="toggleSidebar()" aria-label="Menü aç/kapat">◄</button>
   <main onclick="closeSidebarOnMain()">
     <div class="breadcrumb">${breadcrumb}</div>
     ${body}
@@ -503,6 +508,21 @@ function layout(title, breadcrumb, body, sess) {
   reset();
 })();
 var isMob=function(){return window.innerWidth<=768;};
+function updateToggleTab(){
+  var s=document.getElementById('sidebar'),tab=document.getElementById('sideToggleTab');
+  if(!tab||isMob()) return;
+  var closed=s.classList.contains('closed');
+  tab.textContent=closed?'►':'◄';
+  tab.style.left=closed?'0px':(s.offsetWidth+'px');
+}
+function positionToggleTab(){
+  var tab=document.getElementById('sideToggleTab'),pt=document.querySelector('.page-title');
+  if(tab&&pt){
+    var r=pt.getBoundingClientRect();
+    tab.style.top=(r.top+window.scrollY+2)+'px';
+  }
+  updateToggleTab();
+}
 function toggleSidebar(){
   var s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
   if(isMob()){
@@ -512,6 +532,7 @@ function toggleSidebar(){
   } else {
     var closed=s.classList.toggle('closed');
     localStorage.setItem('sidebarClosed',closed?'1':'0');
+    updateToggleTab();
   }
 }
 function closeSidebarOnMain(){
@@ -524,6 +545,7 @@ function closeSidebarOnMain(){
   if(!isMob() && localStorage.getItem('sidebarClosed')==='1'){
     document.getElementById('sidebar').classList.add('closed');
   }
+  positionToggleTab();
 })();
 </script>
 </body></html>`;
@@ -553,7 +575,7 @@ app.get('/login', (req, res) => {
 <body><div class="box">
   <div class="logo">
     <div class="logo-icon"><img src="/logo" style="width:78px;height:78px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:28px;font-weight:900;color:white;&quot;>L</span>')"></div>
-    <h1>LOJİMAX</h1><p>RAPORLAMA SİSTEMİ</p>
+    <h1>LOJIMAX</h1><p>RAPORLAMA SISTEMI</p>
   </div>
   ${req.query.timeout ? '<div class="error">⏱️ Oturum süreniz doldu. Lütfen tekrar giriş yapın.</div>' : ''}
   ${req.query.err ? '<div class="error">Kullanıcı adı veya şifre hatalı.</div>' : ''}
