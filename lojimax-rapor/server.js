@@ -22,7 +22,7 @@ const dbConfig = {
 function loadData() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
-      const d = { users: [{ id: 1, username: 'sa', password: 'sys.123', role: 'admin', allowedUsers: [] }], reportGroups: [], reports: [], nextId: 2 };
+      const d = { users: [{ id: 1, username: 'sa', password: 'sys.123', role: 'admin', allowedUsers: [] }], reportGroups: [], reports: [], nextId: 2, contact: { manager: '', phone: '', email: '', address: '', note: '' } };
       fs.writeFileSync(DATA_FILE, JSON.stringify(d, null, 2));
       return d;
     }
@@ -288,6 +288,24 @@ const CSS = `
   .col-item{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12px;cursor:pointer;user-select:none;}
   .col-item:hover{color:#1a3a8f;}
   .col-panel-footer{padding:8px 12px;border-top:1px solid #f0f0f0;display:flex;gap:6px;}
+  /* CONTACT */
+  .contact-card{background:white;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,0.08);overflow:hidden;max-width:560px;}
+  .contact-card-header{background:linear-gradient(135deg,#0d1b6e,#1a3a8f);color:white;padding:20px 28px;display:flex;align-items:center;gap:14px;}
+  .contact-card-header .icon{font-size:32px;}
+  .contact-card-header h2{font-size:16px;font-weight:700;letter-spacing:1px;margin:0;}
+  .contact-card-header p{font-size:11px;opacity:0.6;margin:3px 0 0;}
+  .contact-body{padding:24px 28px;}
+  .contact-row{display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-bottom:1px solid #f0f0f0;}
+  .contact-row:last-child{border-bottom:none;}
+  .contact-icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+  .contact-icon.blue{background:#e8eaf6;}
+  .contact-icon.green{background:#e8f5e9;}
+  .contact-icon.orange{background:#fff3e0;}
+  .contact-icon.purple{background:#f3e5f5;}
+  .contact-label{font-size:10px;font-weight:700;color:#aaa;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;}
+  .contact-val{font-size:14px;font-weight:600;color:#1a1a2e;}
+  .contact-val a{color:#1a3a8f;text-decoration:none;}
+  .contact-val a:hover{text-decoration:underline;}
   /* SIDEBAR TOGGLE */
   .mob-menu-btn{display:flex;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;transition:background 0.2s;}
   .mob-menu-btn:hover{background:rgba(255,255,255,0.22);}
@@ -332,6 +350,13 @@ const CSS = `
     td{font-size:11px;padding:7px 10px;}
     th{font-size:10px;padding:8px 10px;}
     .scroll-wrap{max-height:55vh;}
+    .tbl-card{overflow-x:auto;}
+    .admin-table{min-width:480px;}
+    .admin-panel-grid{grid-template-columns:1fr!important;}
+    .contact-card{max-width:100%;}
+    .contact-body{padding:16px;}
+    .contact-card-header{padding:16px 18px;}
+    .contact-val{font-size:13px;}
   }
 `;
 
@@ -399,6 +424,7 @@ function layout(title, breadcrumb, body, sess) {
     <div class="side-section">
       <div class="side-section-title">Ana Menü</div>
       <a href="/" class="side-item${title === 'Ana Sayfa' ? ' active' : ''}">🏠 Ana Sayfa</a>
+      <a href="/iletisim" class="side-item${title === 'İletişim' ? ' active' : ''}">📞 İletişim</a>
     </div>
     <div class="side-section">
       <div class="side-section-title">Raporlar</div>
@@ -552,6 +578,73 @@ app.get('/', auth, (req, res) => {
 });
 
 
+
+// ── İLETİŞİM ──────────────────────────────────────────────────────────
+app.get('/iletisim', auth, (req, res) => {
+  const d = loadData();
+  const c = d.contact || {};
+  const row = (icon, iconClass, label, val, href) => !val ? '' : `
+    <div class="contact-row">
+      <div class="contact-icon ${iconClass}">${icon}</div>
+      <div>
+        <div class="contact-label">${label}</div>
+        <div class="contact-val">${href ? `<a href="${href}">${val}</a>` : val}</div>
+      </div>
+    </div>`;
+  const hasAny = c.manager || c.phone || c.email || c.address || c.note;
+  const body = `
+    <div class="page-title">📞 İletişim</div>
+    <div class="contact-card">
+      <div class="contact-card-header">
+        <div class="icon">🏢</div>
+        <div><h2>LOJİMAX</h2><p>İletişim ve Destek Bilgileri</p></div>
+      </div>
+      <div class="contact-body">
+        ${hasAny ? `
+          ${row('👤','blue','Yönetici', c.manager, '')}
+          ${row('📞','green','Telefon', c.phone, c.phone ? 'tel:'+c.phone.replace(/\s/g,'') : '')}
+          ${row('✉️','orange','E-posta', c.email, c.email ? 'mailto:'+c.email : '')}
+          ${row('📍','purple','Adres', c.address, '')}
+          ${row('📝','blue','Not', c.note, '')}
+        ` : '<p style="color:#aaa;font-size:13px;text-align:center;padding:20px 0;">İletişim bilgisi henüz girilmemiş.</p>'}
+      </div>
+    </div>`;
+  res.send(layout('İletişim', `<a href="/">Ana Sayfa</a> <span>›</span> İletişim`, body, req.session));
+});
+
+// ── ADMIN İLETİŞİM ────────────────────────────────────────────────────
+app.get('/admin/contact', auth, adminOnly, (req, res) => {
+  const d = loadData();
+  const c = d.contact || {};
+  const msg = req.query.msg ? `<div class="alert alert-success">${decodeURIComponent(req.query.msg)}</div>` : '';
+  const body = `
+    ${msg}
+    <div class="page-title">📞 İletişim Bilgileri</div>
+    <div class="form-card">
+      <form method="POST" action="/admin/contact/save">
+        <div class="form-cols">
+          <div class="form-row"><label>Yönetici Adı</label><input name="manager" value="${c.manager||''}" placeholder="Ad Soyad"></div>
+          <div class="form-row"><label>Telefon Numarası</label><input name="phone" value="${c.phone||''}" placeholder="+90 555 000 00 00"></div>
+        </div>
+        <div class="form-row"><label>E-posta Adresi</label><input name="email" type="email" value="${c.email||''}" placeholder="ornek@lojimax.com"></div>
+        <div class="form-row"><label>Adres <span style="font-weight:400;color:#aaa;">(isteğe bağlı)</span></label><input name="address" value="${c.address||''}" placeholder="Şirket adresi"></div>
+        <div class="form-row"><label>Not / Mesai Saatleri <span style="font-weight:400;color:#aaa;">(isteğe bağlı)</span></label><textarea name="note" style="min-height:80px;" placeholder="Örn: Hafta içi 08:00–18:00">${c.note||''}</textarea></div>
+        <div style="display:flex;gap:10px;margin-top:8px;">
+          <button type="submit" class="btn btn-primary">💾 Kaydet</button>
+          <a href="/iletisim" class="btn btn-secondary" target="_blank">👁 Önizle</a>
+          <a href="/admin" class="btn btn-secondary">İptal</a>
+        </div>
+      </form>
+    </div>`;
+  res.send(layout('İletişim Bilgileri', `<a href="/">Ana Sayfa</a> <span>›</span> <a href="/admin">Admin</a> <span>›</span> İletişim Bilgileri`, body, req.session));
+});
+
+app.post('/admin/contact/save', auth, adminOnly, (req, res) => {
+  const d = loadData();
+  d.contact = { manager: req.body.manager||'', phone: req.body.phone||'', email: req.body.email||'', address: req.body.address||'', note: req.body.note||'' };
+  saveData(d);
+  res.redirect('/admin/contact?msg=' + encodeURIComponent('İletişim bilgileri kaydedildi.'));
+});
 
 // ── RAPOR GRUBU INDEX ────────────────────────────────────────────────
 app.get('/raporlar/grup/:id', auth, (req, res) => {
@@ -921,7 +1014,7 @@ app.get('/admin', auth, adminOnly, (req, res) => {
       <div class="admin-kpi green"><div class="kpi-n">${d.reportGroups.length}</div><div class="kpi-l">Rapor Grubu</div></div>
       <div class="admin-kpi orange"><div class="kpi-n">${d.reports.length}</div><div class="kpi-l">Özel Rapor</div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+    <div class="admin-panel-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:16px;">
       <a href="/admin/users" class="menu-card" style="border-left-color:#1a3a8f;">
         <div class="icon">👥</div><div class="title">Kullanıcılar</div>
         <div class="desc">Kullanıcı ekle, düzenle, sil, şifre değiştir</div>
@@ -933,6 +1026,10 @@ app.get('/admin', auth, adminOnly, (req, res) => {
       <a href="/admin/reports" class="menu-card" style="border-left-color:#e65100;">
         <div class="icon">📋</div><div class="title">Raporlar</div>
         <div class="desc">SQL raporları oluştur, düzenle, izin ver</div>
+      </a>
+      <a href="/admin/contact" class="menu-card" style="border-left-color:#00838f;">
+        <div class="icon">📞</div><div class="title">İletişim Bilgileri</div>
+        <div class="desc">Yönetici, telefon ve e-posta bilgilerini düzenle</div>
       </a>
     </div>`;
   res.send(layout('Admin Panel', `<a href="/">Ana Sayfa</a> <span>›</span> Admin Panel`, body, req.session));
