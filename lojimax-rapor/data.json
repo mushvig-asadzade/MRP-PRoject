@@ -1,0 +1,128 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "sa",
+      "password": "sys.123",
+      "role": "admin",
+      "allowedUsers": []
+    },
+    {
+      "id": 2,
+      "username": "ali",
+      "password": "ali",
+      "role": "user",
+      "allowedUsers": []
+    }
+  ],
+  "reportGroups": [
+    {
+      "id": 7,
+      "name": "Satış Sipariş Raporu",
+      "icon": "🏦",
+      "description": "Açık siparişler, sevk durumu ve termin takibi"
+    },
+    {
+      "id": 10,
+      "name": "asd",
+      "icon": "📊",
+      "description": ""
+    }
+  ],
+  "reports": [
+    {
+      "id": 8,
+      "name": "Açık Sipariş Raporu",
+      "groupId": 7,
+      "description": "Teslim edilmemiş siparişler, termin ve üretim durumu",
+      "sql": "SELECT\r\n  O.FICHENO AS 'Sipariş No',\r\n  CONVERT(DATE, O.DATE_) AS 'Tarih',\r\n  C.CODE AS 'Cari Kodu',\r\n  C.DEFINITION_ AS 'Cari',\r\n  CASE WHEN O.STATUS=4 THEN 'Sevkedilebilir' WHEN O.STATUS=1 THEN 'Öneri' END AS 'Sipariş Durumu',\r\n  I.CODE AS 'Stok Kodu',\r\n  CR.NAME AS 'Adı',\r\n  CR.NAME2 AS 'Adı2',\r\n  CR.NAME3 AS 'Adı3',\r\n  OL.AMOUNT AS 'Miktar',\r\n  OL.LINEEXP AS 'Satır Açıklaması',\r\n  CONVERT(DATE, OL.DUEDATE) AS 'Termin Tarihi',\r\n  DATEDIFF(DAY, GETDATE(), OL.DUEDATE) AS 'Termine Kalan Gün',\r\n  ISNULL(SUM(P.RemaniningAmount), 0) AS 'Stok',\r\n  CASE XT.SIPARISDURUM WHEN 1 THEN 'Planlama bekliyor' WHEN 2 THEN 'Üretim aşamasında' WHEN 3 THEN 'Sevke hazır' ELSE NULL END AS 'Üretim Durumu'\r\nFROM LG_023_01_ORFLINE OL\r\nLEFT JOIN LG_023_ITEMS I ON OL.STOCKREF=I.LOGICALREF\r\nLEFT JOIN LG_023_01_ORFICHE O ON OL.ORDFICHEREF=O.LOGICALREF\r\nLEFT JOIN LG_023_CLCARD C ON OL.CLIENTREF=C.LOGICALREF\r\nLEFT JOIN CoralReef_Loj.DBO.Items CR ON I.CODE=CR.CODE\r\nLEFT JOIN CoralReef_Loj.DBO.Package P ON P.StockCardID=CR.OID AND P.GCRecord IS NULL AND P.WarehouseID IN (5,3)\r\nLEFT JOIN LG_XT501001_023 XT ON XT.PARLOGREF=O.LOGICALREF\r\nWHERE OL.STATUS IN (1,4) AND OL.TRCODE=1 AND I.CODE IS NOT NULL\r\n  AND OL.SHIPPEDAMOUNT < OL.AMOUNT\r\n  AND O.DATE_ >= DATEADD(MONTH,-6,GETDATE())\r\n  AND O.STATUS IN (1,4)\r\nGROUP BY O.FICHENO,O.DATE_,C.CODE,C.DEFINITION_,O.STATUS,\r\n  I.CODE,CR.NAME,CR.NAME2,CR.NAME3,OL.AMOUNT,OL.LINEEXP,OL.DUEDATE,XT.SIPARISDURUM\r\nORDER BY O.DATE_ DESC",
+      "statCards": [
+        {
+          "label": "Toplam Satır",
+          "color": "blue",
+          "aggregate": "count_all",
+          "column": ""
+        },
+        {
+          "label": "Termini Geçmiş",
+          "color": "red",
+          "aggregate": "count_where",
+          "column": "Termine Kalan Gün",
+          "operator": "lt",
+          "value": "0"
+        },
+        {
+          "label": "7 Gün İçinde",
+          "color": "orange",
+          "aggregate": "count_where",
+          "column": "Termine Kalan Gün",
+          "operator": "lte",
+          "value": "7"
+        },
+        {
+          "label": "Zamanında",
+          "color": "green",
+          "aggregate": "count_where",
+          "column": "Termine Kalan Gün",
+          "operator": "gt",
+          "value": "7"
+        }
+      ],
+      "charts": [],
+      "columnAliases": {},
+      "allowedUsers": [
+        "sa",
+        "ali"
+      ],
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "hiddenColumns": [],
+      "columnTypes": {
+        "Tarih": "date",
+        "Termin Tarihi": "date"
+      },
+      "updatedAt": "2026-03-08T13:39:47.682Z"
+    },
+    {
+      "id": 9,
+      "name": "Sevk Raporu",
+      "groupId": 7,
+      "description": "Sevk edilen siparişlerin detay raporu",
+      "sql": "SELECT \r\n    CONVERT(VARCHAR(10), STL.DATE_, 104) AS 'Sevk Tarihi',\r\n    STF.FICHENO AS 'İrsaliye No',\r\n    CONVERT(VARCHAR(10), ORF.DATE_, 104) AS 'Sipariş Tarihi',\r\n    ORF.FICHENO AS 'Sipariş No',\r\n    CLC.CODE AS 'Cari Kodu',\r\n    CLC.DEFINITION_ AS 'Cari Hesap Adı',\r\n    CLC.COUNTRY AS 'Ülke',\r\n    CLC.CITY AS 'Şehir',\r\n    CLC.SPECODE AS 'Meslek Grubu',\r\n    ITM.CODE AS 'Malzeme Kodu',\r\n    ITM.NAME AS 'Malzeme Adı 1',\r\n    ITM.NAME3 AS 'Malzeme Adı 2',\r\n    ITM.NAME4 AS 'Malzeme Adı 3',\r\n    ITM2.OEMMODELNAME AS 'Model Adı',\r\n    STL.AMOUNT AS 'Miktar',\r\n    -- BUGÜN SEVK MİKTARI\r\n    CASE \r\n        WHEN CAST(STL.DATE_ AS DATE) = CAST(GETDATE() AS DATE) THEN STL.AMOUNT \r\n        ELSE NULL \r\n    END AS 'Bugün Sevk',\r\n    -- BU AY SEVK MİKTARI\r\n    CASE \r\n        WHEN YEAR(STL.DATE_) = YEAR(GETDATE()) AND MONTH(STL.DATE_) = MONTH(GETDATE()) THEN STL.AMOUNT \r\n        ELSE NULL \r\n    END AS 'Bu Ay Sevk',\r\n    -- BUGÜN SEVK TUTARI\r\n    CASE \r\n        WHEN CAST(STL.DATE_ AS DATE) = CAST(GETDATE() AS DATE) THEN \r\n            ROUND(CASE \r\n                WHEN STF.TRRATE = 0 THEN STL.PRPRICE * STL.AMOUNT\r\n                ELSE STL.PRPRICE * STL.AMOUNT * STF.TRRATE \r\n            END, 2)\r\n        ELSE NULL \r\n    END AS 'Bugün Sevk Tutar',\r\n    -- BU AY SEVK TUTARI\r\n    CASE \r\n        WHEN YEAR(STL.DATE_) = YEAR(GETDATE()) AND MONTH(STL.DATE_) = MONTH(GETDATE()) THEN \r\n            ROUND(CASE \r\n                WHEN STF.TRRATE = 0 THEN STL.PRPRICE * STL.AMOUNT\r\n                ELSE STL.PRPRICE * STL.AMOUNT * STF.TRRATE \r\n            END, 2)\r\n        ELSE NULL \r\n    END AS 'Bu Ay Sevk Tutar',\r\n    ISNULL(CUR.CURCODE, 'TL') AS 'Döviz Cinsi',\r\n    ROUND(STF.TRRATE, 2) AS 'Döviz Kuru',\r\n    STL.PRPRICE AS 'KDV Hariç Fiyat',\r\n    ROUND(CASE \r\n        WHEN STF.TRRATE = 0 THEN STL.PRPRICE \r\n        ELSE STL.PRPRICE * STF.TRRATE \r\n    END, 2) AS 'TL Cinsinden KDV Hariç Fiyat'\r\nFROM LG_023_01_STLINE STL\r\nINNER JOIN LG_023_01_STFICHE STF ON STL.STFICHEREF = STF.LOGICALREF\r\nLEFT JOIN LG_023_01_ORFLINE ORL ON STL.ORDTRANSREF = ORL.LOGICALREF\r\nLEFT JOIN LG_023_01_ORFICHE ORF ON STL.ORDFICHEREF = ORF.LOGICALREF\r\nINNER JOIN LG_023_CLCARD CLC ON STF.CLIENTREF = CLC.LOGICALREF\r\nINNER JOIN LG_023_ITEMS ITM ON STL.STOCKREF = ITM.LOGICALREF\r\nLEFT JOIN CoralReef_Loj.dbo.ITEMS ITM2 ON ITM.CODE = ITM2.CODE\r\nLEFT JOIN L_CURRENCYLIST CUR ON STF.TRCURR = CUR.CURTYPE\r\nWHERE STL.DATE_ >= DATEADD(MONTH, -1, GETDATE())\r\n  AND STL.TRCODE IN (7, 8)\r\nORDER BY STL.DATE_ DESC",
+      "statCards": [],
+      "charts": [],
+      "columnAliases": {},
+      "allowedUsers": [
+        "sa",
+        "ali"
+      ],
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "updatedAt": "2026-03-08T08:38:48.240Z"
+    },
+    {
+      "id": 11,
+      "name": "as",
+      "groupId": 10,
+      "description": "",
+      "sql": "SELECT\r\n  O.FICHENO AS 'Sipariş No',\r\n  CONVERT(DATE, O.DATE_) AS 'Tarih',\r\n  C.CODE AS 'Cari Kodu',\r\n  C.DEFINITION_ AS 'Cari',\r\n  CASE WHEN O.STATUS=4 THEN 'Sevkedilebilir' WHEN O.STATUS=1 THEN 'Öneri' END AS 'Sipariş Durumu',\r\n  I.CODE AS 'Stok Kodu',\r\n  CR.NAME AS 'Adı',\r\n  CR.NAME2 AS 'Adı2',\r\n  CR.NAME3 AS 'Adı3',\r\n  OL.AMOUNT AS 'Miktar',\r\n  OL.LINEEXP AS 'Satır Açıklaması',\r\n  CONVERT(DATE, OL.DUEDATE) AS 'Termin Tarihi',\r\n  DATEDIFF(DAY, GETDATE(), OL.DUEDATE) AS 'Termine Kalan Gün',\r\n  ISNULL(SUM(P.RemaniningAmount), 0) AS 'Stok',\r\n  CASE XT.SIPARISDURUM WHEN 1 THEN 'Planlama bekliyor' WHEN 2 THEN 'Üretim aşamasında' WHEN 3 THEN 'Sevke hazır' ELSE NULL END AS 'Üretim Durumu'\r\nFROM LG_023_01_ORFLINE OL\r\nLEFT JOIN LG_023_ITEMS I ON OL.STOCKREF=I.LOGICALREF\r\nLEFT JOIN LG_023_01_ORFICHE O ON OL.ORDFICHEREF=O.LOGICALREF\r\nLEFT JOIN LG_023_CLCARD C ON OL.CLIENTREF=C.LOGICALREF\r\nLEFT JOIN CoralReef_Loj.DBO.Items CR ON I.CODE=CR.CODE\r\nLEFT JOIN CoralReef_Loj.DBO.Package P ON P.StockCardID=CR.OID AND P.GCRecord IS NULL AND P.WarehouseID IN (5,3)\r\nLEFT JOIN LG_XT501001_023 XT ON XT.PARLOGREF=O.LOGICALREF\r\nWHERE OL.STATUS IN (1,4) AND OL.TRCODE=1 AND I.CODE IS NOT NULL\r\n  AND OL.SHIPPEDAMOUNT < OL.AMOUNT\r\n  AND O.DATE_ >= DATEADD(MONTH,-6,GETDATE())\r\n  AND O.STATUS IN (1,4)\r\nGROUP BY O.FICHENO,O.DATE_,C.CODE,C.DEFINITION_,O.STATUS,\r\n  I.CODE,CR.NAME,CR.NAME2,CR.NAME3,OL.AMOUNT,OL.LINEEXP,OL.DUEDATE,XT.SIPARISDURUM\r\nORDER BY O.DATE_ DESC",
+      "statCards": [],
+      "charts": [
+        {
+          "title": "",
+          "type": "doughnut",
+          "labelColumn": "Sipariş No",
+          "valueAgg": "count",
+          "valueColumn": "Sipariş No",
+          "top": 0
+        }
+      ],
+      "columnAliases": {},
+      "allowedUsers": [
+        "sa",
+        "ali"
+      ],
+      "createdAt": "2026-03-08T08:29:04.027Z",
+      "updatedAt": "2026-03-08T08:29:28.530Z"
+    }
+  ],
+  "nextId": 12
+}
