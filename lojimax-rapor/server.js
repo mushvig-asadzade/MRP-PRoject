@@ -187,7 +187,7 @@ const CSS = `
   body{font-family:'Segoe UI',Tahoma,sans-serif;background:#eef0f5;min-height:100vh;display:flex;flex-direction:column;}
   header{background:linear-gradient(135deg,#0d1b6e,#1a3a8f);color:white;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 3px 10px rgba(0,0,0,0.3);}
   .header-left{display:flex;align-items:center;gap:12px;}
-  .logo{width:144px;height:144px;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+  .logo{width:52px;height:52px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
   .logo-text h1{font-size:24px;letter-spacing:3px;font-weight:800;} .logo-text p{font-size:13px;opacity:0.8;letter-spacing:2px;margin-top:3px;font-weight:500;}
   .header-right{display:flex;align-items:center;gap:18px;}
   .user-badge{background:rgba(255,255,255,0.12);border-radius:8px;padding:6px 14px;font-size:11px;letter-spacing:0.5px;}
@@ -445,7 +445,7 @@ function layout(title, breadcrumb, body, sess) {
 <header>
   <div class="header-left">
     <button class="mob-menu-btn" onclick="toggleSidebar()" aria-label="Menü">◄</button>
-    <div class="logo"><img src="/logo" style="width:144px;height:144px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:22px;font-weight:900;color:white;&quot;>L</span>')"></div>
+    <div class="logo"><img src="/logo" style="width:52px;height:52px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:22px;font-weight:900;color:white;&quot;>L</span>')"></div>
     <div class="logo-text"><h1>LOJIMAX</h1><p>RAPORLAMA SISTEMI</p></div>
   </div>
   <div class="header-right">
