@@ -279,6 +279,48 @@ const CSS = `
   .col-item{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12px;cursor:pointer;user-select:none;}
   .col-item:hover{color:#1a3a8f;}
   .col-panel-footer{padding:8px 12px;border-top:1px solid #f0f0f0;display:flex;gap:6px;}
+  /* MOBILE */
+  .mob-menu-btn{display:none;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;}
+  .sidebar-overlay.open{display:block;}
+  @media(max-width:768px){
+    .mob-menu-btn{display:flex;}
+    header{padding:10px 14px;}
+    .logo{width:38px;height:38px;} .logo img{width:38px!important;height:38px!important;}
+    .logo-text h1{font-size:15px;letter-spacing:2px;} .logo-text p{display:none;}
+    .user-badge{display:none;}
+    .logout-btn{padding:5px 11px;font-size:11px;}
+    aside{position:fixed;left:0;top:0;bottom:0;z-index:1000;transform:translateX(-100%);transition:transform 0.25s ease;width:260px;padding-top:16px;}
+    aside.open{transform:translateX(0);}
+    main{padding:14px 14px;}
+    .breadcrumb{font-size:10px;margin-bottom:10px;}
+    .page-title{font-size:16px;margin-bottom:14px;flex-wrap:wrap;gap:6px;}
+    .stats{gap:10px;}
+    .stat-card{padding:10px 14px;min-width:calc(50% - 5px);}
+    .stat-value{font-size:20px;}
+    .dash-grid{grid-template-columns:1fr;}
+    .dash-card-body{height:220px;}
+    .form-card{padding:16px 14px;}
+    .form-cols{grid-template-columns:1fr;}
+    .form-cols-3{grid-template-columns:1fr;}
+    .form-cols-4{grid-template-columns:1fr 1fr;}
+    .menu-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+    .nav-tabs{flex-wrap:wrap;}
+    .nav-tab{padding:7px 14px;font-size:11px;}
+    .card-header{padding:10px 14px;font-size:11px;}
+    .tbl-card-header{flex-wrap:wrap;gap:8px;}
+    .actions{flex-wrap:wrap;gap:6px;}
+    .admin-kpi-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));}
+    .admin-kpi .kpi-n{font-size:28px;}
+    .refresh-bar{flex-wrap:wrap;gap:6px;}
+    .filter-popup{width:calc(100vw - 28px);max-width:320px;}
+    .col-panel{width:calc(100vw - 28px);max-width:240px;}
+    .btn{padding:7px 12px;font-size:11px;}
+    .btn-sm{padding:4px 9px;font-size:10px;}
+    td{font-size:11px;padding:7px 10px;}
+    th{font-size:10px;padding:8px 10px;}
+    .scroll-wrap{max-height:55vh;}
+  }
 `;
 
 // ── LAYOUT ────────────────────────────────────────────────────────────
@@ -316,6 +358,7 @@ function layout(title, breadcrumb, body, sess) {
 <body>
 <header>
   <div class="header-left">
+    <button class="mob-menu-btn" onclick="toggleSidebar()" aria-label="Menü">☰</button>
     <div class="logo"><img src="/logo" style="width:52px;height:52px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:22px;font-weight:900;color:white;&quot;>L</span>')"></div>
     <div class="logo-text"><h1>LOJİMAX</h1><p>RAPORLAMA SİSTEMİ</p></div>
   </div>
@@ -324,8 +367,9 @@ function layout(title, breadcrumb, body, sess) {
     <a href="/logout" class="logout-btn">Çıkış</a>
   </div>
 </header>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 <div class="app-body">
-  <aside>
+  <aside id="sidebar">
     <div class="side-section">
       <div class="side-section-title">Ana Menü</div>
       <a href="/" class="side-item${title === 'Ana Sayfa' ? ' active' : ''}">🏠 Ana Sayfa</a>
@@ -336,11 +380,23 @@ function layout(title, breadcrumb, body, sess) {
     </div>
     ${adminSidebar}
   </aside>
-  <main>
+  <main onclick="closeSidebarOnMain()">
     <div class="breadcrumb">${breadcrumb}</div>
     ${body}
   </main>
 </div>
+<script>
+function toggleSidebar(){
+  const s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
+  s.classList.toggle('open');o.classList.toggle('open');
+}
+function closeSidebarOnMain(){
+  if(window.innerWidth<=768){
+    const s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
+    s.classList.remove('open');o.classList.remove('open');
+  }
+}
+</script>
 </body></html>`;
 }
 
@@ -348,11 +404,12 @@ function layout(title, breadcrumb, body, sess) {
 app.get('/login', (req, res) => {
   if (req.session.user) return res.redirect('/');
   res.send(`<!DOCTYPE html><html lang="tr"><head>
-<meta charset="UTF-8"><title>LOJİMAX — Giriş</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LOJİMAX — Giriş</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;}
-  body{font-family:'Segoe UI',Tahoma,sans-serif;background:linear-gradient(135deg,#0d1b6e,#1a3a8f);min-height:100vh;display:flex;align-items:center;justify-content:center;}
-  .box{background:white;border-radius:16px;padding:40px 44px;box-shadow:0 20px 60px rgba(0,0,0,0.3);width:360px;}
+  body{font-family:'Segoe UI',Tahoma,sans-serif;background:linear-gradient(135deg,#0d1b6e,#1a3a8f);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;}
+  .box{background:white;border-radius:16px;padding:40px 44px;box-shadow:0 20px 60px rgba(0,0,0,0.3);width:360px;max-width:100%;}
+  @media(max-width:480px){.box{padding:28px 22px;border-radius:12px;}}
   .logo{text-align:center;margin-bottom:28px;}
   .logo-icon{width:80px;height:80px;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;overflow:hidden;margin-bottom:10px;background:linear-gradient(135deg,#0d1b6e,#1a3a8f);}
   .logo h1{font-size:22px;letter-spacing:3px;color:#0d1b6e;font-weight:700;} .logo p{font-size:10px;color:#aaa;letter-spacing:1px;margin-top:2px;}
