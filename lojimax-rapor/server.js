@@ -287,8 +287,10 @@ const CSS = `
   .actions{display:flex;gap:8px;align-items:center;}
   /* FILTER POPUP */
   .th-inner{display:flex;align-items:center;justify-content:space-between;gap:6px;}
-  .col-filter-btn{background:none;border:none;cursor:pointer;color:#c5cae9;padding:2px 4px;border-radius:4px;font-size:11px;flex-shrink:0;transition:color 0.15s;line-height:1;}
-  .col-filter-btn:hover{color:#1a3a8f;} .col-filter-btn.active{color:#c62828;}
+  .col-filter-btn{background:none;border:none;cursor:pointer;color:#8090b8;padding:2px 3px;border-radius:4px;flex-shrink:0;transition:color 0.15s,background 0.15s;line-height:1;display:flex;align-items:center;}
+  .col-filter-btn svg{width:13px;height:13px;display:block;}
+  .col-filter-btn:hover{color:#1a3a8f;background:rgba(26,58,143,0.08);}
+  .col-filter-btn.active{color:#c62828;} .col-filter-btn.active svg{stroke:#c62828;}
   .filter-popup{display:none;position:fixed;background:white;border:1px solid #e0e4f0;border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,0.18);z-index:9999;width:240px;}
   .filter-popup.open{display:block;}
   .fp-tabs{display:flex;border-bottom:2px solid #e8eaf6;}
@@ -900,7 +902,7 @@ app.get('/raporlar/custom/:id', auth, async (req, res) => {
     const aliases = report.columnAliases || {};
     const displayColumns = columns.map(c => aliases[c] || c);
     const customRefreshTime = new Date().toLocaleString('tr-TR');
-    const headerRow = displayColumns.map((c,i)=>`<th><div class="th-inner"><span>${c}</span><button class="col-filter-btn" onclick="_openFilter(${i},this,event)">&#9661;</button></div></th>`).join('');
+    const headerRow = displayColumns.map((c,i)=>`<th><div class="th-inner"><span>${c}</span><button class="col-filter-btn" onclick="_openFilter(${i},this,event)" title="Filtrele"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg></button></div></th>`).join('');
 
     // Charts
     const chartScripts = (report.charts || []).map((chart, ci) => {
