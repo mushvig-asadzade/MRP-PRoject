@@ -79,7 +79,14 @@ const terminCell = v => {
   return `<span style="color:#2e7d32;font-weight:600;">${n} gün</span>`;
 };
 
-const CHART_COLORS = ['#1a3a8f','#c62828','#2e7d32','#e65100','#6a1b9a','#00838f','#f57f17','#4e342e','#37474f','#558b2f','#0277bd','#ad1457'];
+const CHART_THEMES = {
+  default: ['#1a3a8f','#c62828','#2e7d32','#e65100','#6a1b9a','#00838f','#f57f17','#4e342e','#37474f','#558b2f','#0277bd','#ad1457'],
+  blue:    ['#0d47a1','#1565c0','#1976d2','#1e88e5','#2196f3','#42a5f5','#64b5f6','#90caf9','#1a237e','#283593'],
+  green:   ['#1b5e20','#2e7d32','#388e3c','#43a047','#4caf50','#66bb6a','#81c784','#33691e','#558b2f','#689f38'],
+  warm:    ['#b71c1c','#e65100','#f57f17','#f9a825','#ff6f00','#c62828','#ad1457','#880e4f','#4e342e','#bf360c'],
+  cool:    ['#006064','#00838f','#0097a7','#00acc1','#00bcd4','#26c6da','#006064','#004d40','#00695c','#00796b'],
+  mono:    ['#212121','#424242','#616161','#757575','#9e9e9e','#37474f','#455a64','#546e7a','#263238','#90a4ae'],
+};
 
 function formatCell(v, type) {
   if (v === null || v === undefined) return '-';
@@ -145,18 +152,32 @@ function computeStatCard(rows, card) {
   }
 }
 function computeChartData(rows, chart) {
-  const { labelColumn, valueAgg, valueColumn, top } = chart;
+  const { labelColumn, valueAgg, valueColumn, top, sort } = chart;
   const groups = {};
   rows.forEach(r => {
     const lbl = String(r[labelColumn] ?? 'Diğer');
-    if (!groups[lbl]) groups[lbl] = { count: 0, sum: 0 };
+    if (!groups[lbl]) groups[lbl] = { count: 0, sum: 0, vals: [] };
     groups[lbl].count++;
-    if (valueAgg === 'sum' && valueColumn) groups[lbl].sum += parseFloat(r[valueColumn]) || 0;
+    const n = parseFloat(r[valueColumn]) || 0;
+    if (valueColumn) { groups[lbl].sum += n; groups[lbl].vals.push(n); }
   });
-  let entries = Object.entries(groups).map(([k, v]) => [k, valueAgg === 'sum' ? v.sum : v.count]);
-  entries.sort((a, b) => b[1] - a[1]);
+  const aggVal = (v) => {
+    switch (valueAgg) {
+      case 'sum':            return v.sum;
+      case 'avg':            return v.vals.length ? v.sum / v.vals.length : 0;
+      case 'min':            return v.vals.length ? Math.min(...v.vals) : 0;
+      case 'max':            return v.vals.length ? Math.max(...v.vals) : 0;
+      case 'count_distinct': return new Set(v.vals).size;
+      default:               return v.count;
+    }
+  };
+  let entries = Object.entries(groups).map(([k, v]) => [k, aggVal(v)]);
+  if (sort === 'asc')  entries.sort((a, b) => a[1] - b[1]);
+  else if (sort === 'alpha') entries.sort((a, b) => String(a[0]).localeCompare(String(b[0]), 'tr'));
+  else if (sort === 'none') { /* sıralama yok */ }
+  else entries.sort((a, b) => b[1] - a[1]); // default: desc
   if (top) entries = entries.slice(0, parseInt(top));
-  return { labels: entries.map(e => e[0]), data: entries.map(e => e[1]) };
+  return { labels: entries.map(e => e[0]), data: entries.map(e => parseFloat(e[1].toFixed ? e[1].toFixed(2) : e[1])) };
 }
 
 
@@ -210,9 +231,16 @@ const CSS = `
   .scroll-wrap{overflow-x:auto;max-height:60vh;overflow-y:auto;}
   .tbl-footer{text-align:center;padding:12px;font-size:11px;color:#aaa;border-top:1px solid #f0f0f0;}
   .dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
-  .dash-card{background:white;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);overflow:hidden;}
-  .dash-card-header{background:linear-gradient(90deg,#0d1b6e,#1a3a8f);color:white;padding:11px 18px;font-size:11px;font-weight:700;letter-spacing:1px;}
-  .dash-card-body{padding:16px;position:relative;height:280px;} .dash-card-body.tall{height:360px;} .dash-card-body.wide{height:240px;}
+  .dash-card{background:white;border-radius:14px;box-shadow:0 2px 16px rgba(0,0,0,0.08);overflow:hidden;transition:box-shadow 0.2s;}
+  .dash-card:hover{box-shadow:0 6px 28px rgba(0,0,0,0.13);}
+  .dash-card.full-width{grid-column:1/-1;}
+  .dash-card-header{background:linear-gradient(90deg,#0d1b6e,#1a3a8f);color:white;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;}
+  .dash-card-header .dch-title{font-size:12px;font-weight:700;letter-spacing:0.8px;}
+  .dash-card-header .dch-badge{font-size:10px;background:rgba(255,255,255,0.18);border-radius:20px;padding:3px 10px;opacity:0.9;}
+  .dash-card-body{padding:16px;position:relative;height:280px;} .dash-card-body.tall{height:380px;} .dash-card-body.wide{height:240px;} .dash-card-body.xl{height:460px;}
+  .dash-card-footer{padding:9px 18px;background:#f8f9ff;border-top:1px solid #eef0f5;display:flex;gap:16px;flex-wrap:wrap;}
+  .dash-stat{font-size:10px;color:#888;} .dash-stat strong{color:#1a3a8f;font-size:12px;}
+  .dash-desc{padding:6px 20px 10px;font-size:11px;color:#999;border-top:1px solid #f5f5f5;}
   .dash-full{margin-top:18px;}
   .coming-soon{background:white;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.07);padding:60px;text-align:center;color:#aaa;}
   /* ADMIN */
@@ -329,7 +357,10 @@ const CSS = `
     .stat-card{padding:10px 14px;min-width:calc(50% - 5px);}
     .stat-value{font-size:20px;}
     .dash-grid{grid-template-columns:1fr;}
+    .dash-card.full-width{grid-column:unset;}
     .dash-card-body{height:220px;}
+    .dash-card-footer{gap:10px;}
+    .form-cols-4{grid-template-columns:1fr 1fr;}
     .form-card{padding:16px 14px;}
     .form-cols{grid-template-columns:1fr;}
     .form-cols-3{grid-template-columns:1fr;}
@@ -725,11 +756,64 @@ app.get('/raporlar/custom/:id', auth, async (req, res) => {
 
     // Charts
     const chartScripts = (report.charts || []).map((chart, ci) => {
-      const cd   = computeChartData(rows, chart);
-      const type = chart.type === 'bar_h' ? 'bar' : (chart.type || 'bar');
-      const isHorizontal = chart.type === 'bar_h';
-      const colors = cd.labels.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
-      return `new Chart(document.getElementById('chart_${ci}'),{type:'${type}',data:{labels:${JSON.stringify(cd.labels)},datasets:[{data:${JSON.stringify(cd.data)},backgroundColor:${JSON.stringify(colors)},borderRadius:5,borderWidth:2}]},options:{${isHorizontal?'indexAxis:"y",':""}responsive:true,maintainAspectRatio:false,plugins:{legend:{display:${type==='pie'||type==='doughnut'?'true':'false'},position:'bottom'}},scales:{${type!=='pie'&&type!=='doughnut'?'x:{beginAtZero:true},y:{beginAtZero:true}':''}}}});`;
+      const cd = computeChartData(rows, chart);
+      const isArea = chart.type === 'area';
+      const isHBar = chart.type === 'bar_h';
+      const isRadar = chart.type === 'radar';
+      const type = isArea ? 'line' : (isHBar ? 'bar' : (chart.type || 'bar'));
+      const isCircular = type === 'pie' || type === 'doughnut';
+      const palette = CHART_THEMES[chart.theme || 'default'] || CHART_THEMES.default;
+      const multiColor = isCircular || isRadar;
+      const bgColors = multiColor
+        ? cd.labels.map((_, i) => palette[i % palette.length])
+        : (isArea ? palette[0] + '33' : palette[0]);
+      const borderColors = multiColor
+        ? cd.labels.map((_, i) => palette[i % palette.length])
+        : palette[0];
+      const showLabels = chart.showLabels === true || chart.showLabels === 'true';
+      const smooth = chart.smooth === true || chart.smooth === 'true';
+      const total = cd.data.reduce((a, b) => a + b, 0);
+      const avg = cd.data.length ? (total / cd.data.length) : 0;
+      const dataset = {
+        data: cd.data,
+        backgroundColor: bgColors,
+        borderColor: isCircular ? 'white' : borderColors,
+        borderWidth: isCircular ? 2 : (isArea || type === 'line' ? 2.5 : 0),
+        borderRadius: (type === 'bar' && !isHBar) ? 6 : (isHBar ? 4 : 0),
+        fill: isArea,
+        tension: (isArea || type === 'line') ? (smooth ? 0.4 : 0.1) : 0,
+        pointRadius: (type === 'line' || isArea) ? 4 : 0,
+        pointHoverRadius: (type === 'line' || isArea) ? 7 : 0,
+        pointBackgroundColor: borderColors,
+        hoverOffset: isCircular ? 8 : 0,
+      };
+      const datalabelsPlugin = showLabels ? `,datalabels:{display:true,color:'#fff',font:{weight:'bold',size:11},formatter:function(v){return v>=1000?v.toLocaleString('tr-TR'):v;}}` : `,datalabels:{display:false}`;
+      const scalesConfig = isCircular || isRadar ? '' :
+        `x:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{size:10}}},y:{beginAtZero:true,grid:{color:'#f0f0f0'},ticks:{font:{size:10}}}`;
+      return `(function(){
+  var d=${JSON.stringify(dataset)};
+  new Chart(document.getElementById('chart_${ci}'),{
+    type:'${type}',
+    data:{labels:${JSON.stringify(cd.labels)},datasets:[d]},
+    options:{
+      ${isHBar ? 'indexAxis:"y",' : ''}
+      responsive:true,maintainAspectRatio:false,
+      animation:{duration:700,easing:'easeInOutQuart'},
+      plugins:{
+        legend:{display:${multiColor || type === 'line' || isArea ? 'false' : 'false'},position:'bottom',labels:{font:{size:11},padding:12}},
+        tooltip:{callbacks:{label:function(c){var v=c.parsed${isHBar ? '.x' : (isCircular ? '' : '.y')};return typeof v==='number'?v.toLocaleString('tr-TR'):c.formattedValue;}}},
+        ${isCircular ? `legend:{display:true,position:'bottom',labels:{font:{size:11},padding:10}},` : ''}
+        ${datalabelsPlugin.slice(1)}
+      },
+      scales:{${scalesConfig}}
+    }
+  });
+  var foot=document.getElementById('chfoot_${ci}');
+  if(foot){
+    var tot=${JSON.stringify(total)},avg=${JSON.stringify(parseFloat(avg.toFixed(2)))},cnt=${JSON.stringify(cd.data.length)};
+    foot.innerHTML='<span class="dash-stat">Toplam: <strong>'+tot.toLocaleString('tr-TR')+'</strong></span><span class="dash-stat">Ort: <strong>'+avg.toLocaleString('tr-TR')+'</strong></span><span class="dash-stat">Grup: <strong>'+cnt+'</strong></span>';
+  }
+})();`;
     }).join('\n');
 
     const hasTabs = (report.charts || []).length > 0;
@@ -768,11 +852,21 @@ app.get('/raporlar/custom/:id', auth, async (req, res) => {
       </div>
       ${hasTabs ? `<div id="view-dashboard" class="view">
         <div class="dash-grid">
-          ${(report.charts||[]).map((chart,ci)=>`
-            <div class="dash-card">
-              <div class="dash-card-header">${chart.title||chart.labelColumn}</div>
-              <div class="dash-card-body${(report.charts||[]).length===1?' wide':''}"><canvas id="chart_${ci}"></canvas></div>
-            </div>`).join('')}
+          ${(report.charts||[]).map((chart,ci)=>{
+            const isWide = chart.size==='wide';
+            const bodyClass = chart.size==='tall' ? ' tall' : chart.size==='xl' ? ' xl' : (report.charts.length===1 ? ' wide' : '');
+            const cd = computeChartData(rows, chart);
+            const aggLabel = {count:'Kayıt',sum:'Toplam',avg:'Ortalama',min:'Min',max:'Maks',count_distinct:'Tekil'}[chart.valueAgg||'count']||'';
+            return `<div class="dash-card${isWide?' full-width':''}">
+              <div class="dash-card-header">
+                <span class="dch-title">${chart.title||chart.labelColumn||'Grafik'}</span>
+                <span class="dch-badge">${aggLabel} · ${cd.labels.length} grup</span>
+              </div>
+              ${chart.desc ? `<div class="dash-desc">${chart.desc}</div>` : ''}
+              <div class="dash-card-body${bodyClass}"><canvas id="chart_${ci}"></canvas></div>
+              <div class="dash-card-footer" id="chfoot_${ci}"></div>
+            </div>`;
+          }).join('')}
         </div>
       </div>` : ''}
       <div id="_filterPopup" class="filter-popup">
@@ -1568,24 +1662,63 @@ function reportFormHtml(report, groups, users, action, pageTitle) {
       function chartTemplate(idx) {
         return \`<button type="button" class="rm" onclick="removeEl('ch_\${idx}')">✕</button>
           <div class="form-cols-3">
-            <div class="form-row" style="margin:0;"><label>Grafik Başlığı</label><input ch-title data-idx="\${idx}" placeholder="Dağılım Analizi"></div>
+            <div class="form-row" style="margin:0;"><label>Grafik Başlığı</label><input ch-title data-idx="\${idx}" placeholder="Örn: Müşteri Dağılımı"></div>
             <div class="form-row" style="margin:0;"><label>Grafik Tipi</label>
               <select ch-type data-idx="\${idx}">
-                <option value="doughnut">Halka (Doughnut)</option><option value="pie">Pasta (Pie)</option>
-                <option value="bar">Dikey Çubuk (Bar)</option><option value="bar_h">Yatay Çubuk</option>
-                <option value="line">Çizgi (Line)</option>
+                <option value="bar">📊 Dikey Çubuk</option>
+                <option value="bar_h">📊 Yatay Çubuk</option>
+                <option value="line">📈 Çizgi</option>
+                <option value="area">🏔️ Alan (Area)</option>
+                <option value="doughnut">🍩 Halka (Doughnut)</option>
+                <option value="pie">🥧 Pasta (Pie)</option>
+                <option value="radar">🕸️ Radar</option>
               </select></div>
             <div class="form-row" style="margin:0;"><label>Etiket Sütunu <small>(gruplama)</small></label><input ch-label-col data-idx="\${idx}" placeholder="SütunAdı"></div>
           </div>
           <div class="form-cols-3" style="margin-top:8px;">
             <div class="form-row" style="margin:0;"><label>Değer Hesaplama</label>
               <select ch-val-agg data-idx="\${idx}" onchange="updateChartFields('ch_\${idx}')">
-                <option value="count">Satır Sayısı</option>
-                <option value="sum">Toplam (Sütun)</option>
+                <option value="count">Kayıt Sayısı</option>
+                <option value="sum">Toplam</option>
+                <option value="avg">Ortalama</option>
+                <option value="min">Minimum</option>
+                <option value="max">Maksimum</option>
+                <option value="count_distinct">Tekil Sayısı</option>
               </select></div>
-            <div class="form-row" style="margin:0;" id="ch_vcol_\${idx}" style="display:none;"><label>Değer Sütunu</label><input ch-val-col data-idx="\${idx}" placeholder="SütunAdı"></div>
-            <div class="form-row" style="margin:0;"><label>Top N <small>(0=tümü)</small></label><input ch-top data-idx="\${idx}" type="number" min="0" value="0" placeholder="10"></div>
-          </div>\`;
+            <div class="form-row" style="margin:0;" id="ch_vcol_\${idx}"><label>Değer Sütunu</label><input ch-val-col data-idx="\${idx}" placeholder="SütunAdı"></div>
+            <div class="form-row" style="margin:0;"><label>Top N <small>(0=tümü)</small></label><input ch-top data-idx="\${idx}" type="number" min="0" value="0"></div>
+          </div>
+          <div class="form-cols-4" style="margin-top:8px;">
+            <div class="form-row" style="margin:0;"><label>Renk Teması</label>
+              <select ch-theme data-idx="\${idx}">
+                <option value="default">🎨 Varsayılan</option>
+                <option value="blue">🔵 Mavi</option>
+                <option value="green">🟢 Yeşil</option>
+                <option value="warm">🔴 Sıcak</option>
+                <option value="cool">🩵 Serin</option>
+                <option value="mono">⚫ Mono</option>
+              </select></div>
+            <div class="form-row" style="margin:0;"><label>Kart Boyutu</label>
+              <select ch-size data-idx="\${idx}">
+                <option value="">Normal (yarım)</option>
+                <option value="wide">Geniş (tam)</option>
+                <option value="tall">Uzun</option>
+                <option value="xl">Çok Uzun</option>
+              </select></div>
+            <div class="form-row" style="margin:0;"><label>Sıralama</label>
+              <select ch-sort data-idx="\${idx}">
+                <option value="">Yüksekten düşüğe</option>
+                <option value="asc">Düşükten yükseğe</option>
+                <option value="alpha">Alfabetik</option>
+                <option value="none">Sıralama yok</option>
+              </select></div>
+            <div class="form-row" style="margin:0;"><label>Seçenekler</label>
+              <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-weight:400;text-transform:none;letter-spacing:0;">
+                <input type="checkbox" ch-smooth data-idx="\${idx}"> Yumuşak çizgi
+              </label>
+            </div>
+          </div>
+          <div class="form-row" style="margin-top:8px;"><label>Açıklama <small>(isteğe bağlı)</small></label><input ch-desc data-idx="\${idx}" placeholder="Grafik altında görünecek kısa açıklama"></div>\`;
       }
 
       function updateAggFields(rowId) {
@@ -1618,7 +1751,7 @@ function reportFormHtml(report, groups, users, action, pageTitle) {
         if (!row) return;
         const agg = row.querySelector('[ch-val-agg]').value;
         const vcolDiv = document.getElementById('ch_vcol_' + row.querySelector('[ch-val-agg]').dataset.idx);
-        if (vcolDiv) vcolDiv.style.display = agg === 'sum' ? '' : 'none';
+        if (vcolDiv) vcolDiv.style.display = ['sum','avg','min','max','count_distinct'].includes(agg) ? '' : 'none';
       }
 
       function collectStatCards() {
@@ -1650,14 +1783,23 @@ function reportFormHtml(report, groups, users, action, pageTitle) {
       }
       function collectCharts() {
         const rows = document.querySelectorAll('#charts .dyn-row');
-        return Array.from(rows).map(row => ({
-          title:       row.querySelector('[ch-title]').value,
-          type:        row.querySelector('[ch-type]').value,
-          labelColumn: row.querySelector('[ch-label-col]').value,
-          valueAgg:    row.querySelector('[ch-val-agg]').value,
-          valueColumn: row.querySelector('[ch-val-col]') ? row.querySelector('[ch-val-col]').value : '',
-          top:         parseInt(row.querySelector('[ch-top]').value) || 0,
-        }));
+        return Array.from(rows).map(row => {
+          const g = s => { const el = row.querySelector('['+s+']'); return el ? el.value : ''; };
+          const gc = s => { const el = row.querySelector('['+s+']'); return el ? el.checked : false; };
+          return {
+            title:       g('ch-title'),
+            type:        g('ch-type'),
+            labelColumn: g('ch-label-col'),
+            valueAgg:    g('ch-val-agg'),
+            valueColumn: g('ch-val-col'),
+            top:         parseInt(g('ch-top')) || 0,
+            theme:       g('ch-theme'),
+            size:        g('ch-size'),
+            sort:        g('ch-sort'),
+            smooth:      gc('ch-smooth'),
+            desc:        g('ch-desc'),
+          };
+        });
       }
       function prepareSubmit() {
         document.getElementById('statCardsJson').value = JSON.stringify(collectStatCards());
@@ -1802,25 +1944,40 @@ function statCardRowHtml(card, i) {
 }
 
 function chartRowHtml(chart, i) {
-  const typeOpts = ['doughnut','pie','bar','bar_h','line'].map(t =>
-    `<option value="${t}" ${chart.type===t?'selected':''}>${{doughnut:'Halka (Doughnut)',pie:'Pasta (Pie)',bar:'Dikey Çubuk (Bar)',bar_h:'Yatay Çubuk',line:'Çizgi (Line)'}[t]}</option>`
-  ).join('');
-  const aggOpts = ['count','sum'].map(a =>
-    `<option value="${a}" ${chart.valueAgg===a?'selected':''}>${a==='count'?'Satır Sayısı':'Toplam (Sütun)'}</option>`
-  ).join('');
-  const isSum = chart.valueAgg === 'sum';
+  const types = {bar:'📊 Dikey Çubuk',bar_h:'📊 Yatay Çubuk',line:'📈 Çizgi',area:'🏔️ Alan (Area)',doughnut:'🍩 Halka (Doughnut)',pie:'🥧 Pasta (Pie)',radar:'🕸️ Radar'};
+  const typeOpts = Object.entries(types).map(([v,l])=>`<option value="${v}" ${chart.type===v?'selected':''}>${l}</option>`).join('');
+  const aggs = {count:'Kayıt Sayısı',sum:'Toplam',avg:'Ortalama',min:'Minimum',max:'Maksimum',count_distinct:'Tekil Sayısı'};
+  const aggOpts = Object.entries(aggs).map(([v,l])=>`<option value="${v}" ${chart.valueAgg===v?'selected':''}>${l}</option>`).join('');
+  const themes = {default:'🎨 Varsayılan',blue:'🔵 Mavi',green:'🟢 Yeşil',warm:'🔴 Sıcak',cool:'🩵 Serin',mono:'⚫ Mono'};
+  const themeOpts = Object.entries(themes).map(([v,l])=>`<option value="${v}" ${(chart.theme||'default')===v?'selected':''}>${l}</option>`).join('');
+  const sizes = {'':'Normal (yarım)',wide:'Geniş (tam)',tall:'Uzun',xl:'Çok Uzun'};
+  const sizeOpts = Object.entries(sizes).map(([v,l])=>`<option value="${v}" ${(chart.size||'')===v?'selected':''}>${l}</option>`).join('');
+  const sorts = {'':'Yüksekten düşüğe',asc:'Düşükten yükseğe',alpha:'Alfabetik',none:'Sıralama yok'};
+  const sortOpts = Object.entries(sorts).map(([v,l])=>`<option value="${v}" ${(chart.sort||'')===v?'selected':''}>${l}</option>`).join('');
+  const needsCol = ['sum','avg','min','max','count_distinct'].includes(chart.valueAgg);
   return `<div class="dyn-row" id="ch_${i}">
     <button type="button" class="rm" onclick="removeEl('ch_${i}')">✕</button>
     <div class="form-cols-3">
-      <div class="form-row" style="margin:0;"><label>Grafik Başlığı</label><input ch-title data-idx="${i}" value="${chart.title||''}" placeholder="Dağılım Analizi"></div>
+      <div class="form-row" style="margin:0;"><label>Grafik Başlığı</label><input ch-title data-idx="${i}" value="${chart.title||''}" placeholder="Örn: Müşteri Dağılımı"></div>
       <div class="form-row" style="margin:0;"><label>Grafik Tipi</label><select ch-type data-idx="${i}">${typeOpts}</select></div>
       <div class="form-row" style="margin:0;"><label>Etiket Sütunu <small>(gruplama)</small></label><input ch-label-col data-idx="${i}" value="${chart.labelColumn||''}" placeholder="SütunAdı"></div>
     </div>
     <div class="form-cols-3" style="margin-top:8px;">
       <div class="form-row" style="margin:0;"><label>Değer Hesaplama</label><select ch-val-agg data-idx="${i}" onchange="updateChartFields('ch_${i}')">${aggOpts}</select></div>
-      <div class="form-row" style="margin:0;${isSum?'':'display:none;'}" id="ch_vcol_${i}"><label>Değer Sütunu</label><input ch-val-col data-idx="${i}" value="${chart.valueColumn||''}" placeholder="SütunAdı"></div>
+      <div class="form-row" style="margin:0;${needsCol?'':'display:none;'}" id="ch_vcol_${i}"><label>Değer Sütunu</label><input ch-val-col data-idx="${i}" value="${chart.valueColumn||''}" placeholder="SütunAdı"></div>
       <div class="form-row" style="margin:0;"><label>Top N <small>(0=tümü)</small></label><input ch-top data-idx="${i}" type="number" min="0" value="${chart.top||0}"></div>
     </div>
+    <div class="form-cols-4" style="margin-top:8px;">
+      <div class="form-row" style="margin:0;"><label>Renk Teması</label><select ch-theme data-idx="${i}">${themeOpts}</select></div>
+      <div class="form-row" style="margin:0;"><label>Kart Boyutu</label><select ch-size data-idx="${i}">${sizeOpts}</select></div>
+      <div class="form-row" style="margin:0;"><label>Sıralama</label><select ch-sort data-idx="${i}">${sortOpts}</select></div>
+      <div class="form-row" style="margin:0;"><label>Seçenekler</label>
+        <label style="display:flex;align-items:center;gap:6px;margin-top:6px;font-weight:400;text-transform:none;letter-spacing:0;">
+          <input type="checkbox" ch-smooth data-idx="${i}" ${chart.smooth?'checked':''}> Yumuşak çizgi
+        </label>
+      </div>
+    </div>
+    <div class="form-row" style="margin-top:8px;"><label>Açıklama <small>(isteğe bağlı)</small></label><input ch-desc data-idx="${i}" value="${chart.desc||''}" placeholder="Grafik altında görünecek kısa açıklama"></div>
   </div>`;
 }
 
