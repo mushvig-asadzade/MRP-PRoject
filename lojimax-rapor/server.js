@@ -337,8 +337,10 @@ const CSS = `
   /* SIDEBAR TOGGLE */
   .mob-menu-btn{display:none;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;transition:background 0.2s;}
   .mob-menu-btn:hover{background:rgba(255,255,255,0.22);}
-  .side-toggle-tab{position:fixed;z-index:200;background:white;border:1.5px solid #c5cae9;border-left:none;border-radius:0 10px 10px 0;width:18px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:3px 0 10px rgba(0,0,0,0.1);transition:left 0.25s ease,top 0.1s;color:#1a3a8f;font-size:11px;outline:none;padding:0;font-weight:700;}
-  .side-toggle-tab:hover{background:#e8eaf6;}
+  .side-toggle-tab{position:fixed;z-index:200;width:32px;height:32px;border-radius:50%;background:white;border:2px solid #1a3a8f;box-shadow:0 2px 10px rgba(26,58,143,0.25);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:left 0.25s ease,top 0.1s,background 0.2s,box-shadow 0.2s;outline:none;padding:0;}
+  .side-toggle-tab:hover{background:#1a3a8f;box-shadow:0 4px 16px rgba(26,58,143,0.4);}
+  .side-toggle-tab svg{width:14px;height:14px;transition:stroke 0.2s;}
+  .side-toggle-tab:hover svg{stroke:white;}
   aside{width:240px;background:white;box-shadow:2px 0 8px rgba(0,0,0,0.06);padding:20px 0;flex-shrink:0;overflow-y:auto;overflow-x:hidden;transition:width 0.25s ease,padding 0.25s ease;}
   aside.closed{width:0;padding:0;}
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;}
@@ -467,7 +469,7 @@ function layout(title, breadcrumb, body, sess) {
     </div>
     ${adminSidebar}
   </aside>
-  <button class="side-toggle-tab" id="sideToggleTab" onclick="toggleSidebar()" aria-label="Menü aç/kapat">◄</button>
+  <button class="side-toggle-tab" id="sideToggleTab" onclick="toggleSidebar()" aria-label="Menü aç/kapat"><svg id="sideToggleIcon" viewBox="0 0 24 24" fill="none" stroke="#1a3a8f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
   <main onclick="closeSidebarOnMain()">
     <div class="breadcrumb">${breadcrumb}</div>
     ${body}
@@ -509,11 +511,11 @@ function layout(title, breadcrumb, body, sess) {
 })();
 var isMob=function(){return window.innerWidth<=768;};
 function updateToggleTab(){
-  var s=document.getElementById('sidebar'),tab=document.getElementById('sideToggleTab');
+  var s=document.getElementById('sidebar'),tab=document.getElementById('sideToggleTab'),ico=document.getElementById('sideToggleIcon');
   if(!tab||isMob()) return;
   var closed=s.classList.contains('closed');
-  tab.textContent=closed?'►':'◄';
-  tab.style.left=closed?'0px':(s.offsetWidth+'px');
+  if(ico) ico.style.transform=closed?'rotate(180deg)':'rotate(0deg)';
+  tab.style.left=closed?'8px':((s.offsetWidth-16)+'px');
 }
 function positionToggleTab(){
   var tab=document.getElementById('sideToggleTab'),pt=document.querySelector('.page-title');
