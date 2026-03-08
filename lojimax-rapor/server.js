@@ -22,7 +22,7 @@ const dbConfig = {
 function loadData() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
-      const d = { users: [{ id: 1, username: 'sa', password: 'sys.123', role: 'admin', allowedUsers: [] }], reportGroups: [], reports: [], nextId: 2, contact: { manager: '', phone: '', email: '', address: '', note: '' } };
+      const d = { users: [{ id: 1, username: 'sa', password: 'sys.123', role: 'admin', allowedUsers: [] }], reportGroups: [], reports: [], nextId: 2, contact: { manager: '', phone: '', email: '', address: '', note: '' }, homepageSettings: { showAnnouncement: false, announcementText: '', announcementType: 'info', showStats: true, showContact: false, hiddenGroups: [] } };
       fs.writeFileSync(DATA_FILE, JSON.stringify(d, null, 2));
       return d;
     }
@@ -187,7 +187,7 @@ const CSS = `
   body{font-family:'Segoe UI',Tahoma,sans-serif;background:#eef0f5;min-height:100vh;display:flex;flex-direction:column;}
   header{background:linear-gradient(135deg,#0d1b6e,#1a3a8f);color:white;padding:14px 32px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 3px 10px rgba(0,0,0,0.3);}
   .header-left{display:flex;align-items:center;gap:12px;}
-  .logo{width:72px;height:72px;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
+  .logo{width:144px;height:144px;border-radius:14px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;}
   .logo-text h1{font-size:18px;letter-spacing:3px;font-weight:700;} .logo-text p{font-size:9px;opacity:0.55;letter-spacing:1px;margin-top:1px;}
   .header-right{display:flex;align-items:center;gap:18px;}
   .user-badge{background:rgba(255,255,255,0.12);border-radius:8px;padding:6px 14px;font-size:11px;letter-spacing:0.5px;}
@@ -343,7 +343,7 @@ const CSS = `
   .sidebar-overlay.open{display:block;}
   @media(max-width:768px){
     header{padding:10px 14px;}
-    .logo{width:38px;height:38px;} .logo img{width:38px!important;height:38px!important;}
+    .logo{width:52px;height:52px;} .logo img{width:52px!important;height:52px!important;}
     .logo-text h1{font-size:15px;letter-spacing:2px;} .logo-text p{display:none;}
     .user-badge{display:none;}
     .logout-btn{padding:5px 11px;font-size:11px;}
@@ -441,7 +441,7 @@ function layout(title, breadcrumb, body, sess) {
 <header>
   <div class="header-left">
     <button class="mob-menu-btn" onclick="toggleSidebar()" aria-label="Menü">☰</button>
-    <div class="logo"><img src="/logo" style="width:72px;height:72px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:22px;font-weight:900;color:white;&quot;>L</span>')"></div>
+    <div class="logo"><img src="/logo" style="width:144px;height:144px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:22px;font-weight:900;color:white;&quot;>L</span>')"></div>
     <div class="logo-text"><h1>LOJİMAX</h1><p>RAPORLAMA SİSTEMİ</p></div>
   </div>
   <div class="header-right">
@@ -588,15 +588,53 @@ app.get('/api/ping', auth, (_req, res) => res.json({ ok: true }));
 // ── ANA SAYFA ─────────────────────────────────────────────────────────
 app.get('/', auth, (req, res) => {
   const d = loadData();
+  const hs = Object.assign({ showAnnouncement: false, announcementText: '', announcementType: 'info', showStats: true, showContact: false, hiddenGroups: [] }, d.homepageSettings || {});
   const visibleReports = d.reports.filter(r => {
     if (req.session.role === 'admin') return true;
     if (!r.allowedUsers || r.allowedUsers.length === 0) return true;
     return r.allowedUsers.includes(req.session.user);
   });
-  const groupCards = d.reportGroups.filter(g => visibleReports.some(r => r.groupId === g.id))
+  const hiddenSet = new Set((hs.hiddenGroups || []).map(Number));
+  const groupCards = d.reportGroups
+    .filter(g => !hiddenSet.has(g.id) && visibleReports.some(r => r.groupId === g.id))
     .map(g => `<a href="/raporlar/grup/${g.id}" class="menu-card"><div class="icon">${g.icon||'📊'}</div><div class="title">${g.name}</div><div class="desc">${g.description||''}</div></a>`).join('');
+
+  const annColors = { info: { bg: '#e3f2fd', border: '#1e88e5', col: '#0d47a1', icon: 'ℹ️' }, warning: { bg: '#fff8e1', border: '#ffa000', col: '#e65100', icon: '⚠️' }, success: { bg: '#e8f5e9', border: '#43a047', col: '#1b5e20', icon: '✅' }, danger: { bg: '#ffebee', border: '#e53935', col: '#b71c1c', icon: '🔴' } };
+  const annC = annColors[hs.announcementType] || annColors.info;
+  const announcementHtml = hs.showAnnouncement && hs.announcementText ? `
+    <div style="background:${annC.bg};border-left:4px solid ${annC.border};color:${annC.col};border-radius:10px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px;font-size:14px;font-weight:500;">
+      <span style="font-size:20px;">${annC.icon}</span>
+      <span>${hs.announcementText}</span>
+    </div>` : '';
+
+  const statsHtml = hs.showStats ? `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px;">
+      <div style="background:white;border-radius:12px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:center;border-top:3px solid #1a3a8f;">
+        <div style="font-size:28px;font-weight:700;color:#1a3a8f;">${d.reportGroups.filter(g => !g.parentId && !hiddenSet.has(g.id)).length}</div>
+        <div style="font-size:11px;color:#888;margin-top:3px;">Rapor Grubu</div>
+      </div>
+      <div style="background:white;border-radius:12px;padding:16px 20px;box-shadow:0 2px 8px rgba(0,0,0,0.08);text-align:center;border-top:3px solid #2e7d32;">
+        <div style="font-size:28px;font-weight:700;color:#2e7d32;">${visibleReports.length}</div>
+        <div style="font-size:11px;color:#888;margin-top:3px;">Erişilebilir Rapor</div>
+      </div>
+    </div>` : '';
+
+  const c = d.contact || {};
+  const contactHtml = hs.showContact && (c.manager || c.phone || c.email) ? `
+    <div style="background:white;border-radius:12px;padding:18px 22px;box-shadow:0 2px 8px rgba(0,0,0,0.08);margin-bottom:22px;border-left:4px solid #00838f;">
+      <div style="font-size:12px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">📞 İletişim</div>
+      <div style="display:flex;flex-wrap:wrap;gap:18px;font-size:13px;color:#333;">
+        ${c.manager ? `<span>👤 <strong>${c.manager}</strong></span>` : ''}
+        ${c.phone ? `<span>📞 <a href="tel:${c.phone.replace(/\s/g,'')}" style="color:#00838f;">${c.phone}</a></span>` : ''}
+        ${c.email ? `<span>✉️ <a href="mailto:${c.email}" style="color:#00838f;">${c.email}</a></span>` : ''}
+      </div>
+    </div>` : '';
+
   const body = `
     <div class="page-title">Ana Sayfa</div>
+    ${announcementHtml}
+    ${statsHtml}
+    ${contactHtml}
     <div class="menu-grid">
       ${groupCards}
       ${req.session.role === 'admin' ? `<a href="/admin" class="menu-card" style="border-left-color:#6a1b9a;">
@@ -675,6 +713,91 @@ app.post('/admin/contact/save', auth, adminOnly, (req, res) => {
   d.contact = { manager: req.body.manager||'', phone: req.body.phone||'', email: req.body.email||'', address: req.body.address||'', note: req.body.note||'' };
   saveData(d);
   res.redirect('/admin/contact?msg=' + encodeURIComponent('İletişim bilgileri kaydedildi.'));
+});
+
+// ── ADMIN ANA SAYFA DÜZENİ ───────────────────────────────────────────
+app.get('/admin/homepage', auth, adminOnly, (req, res) => {
+  const d = loadData();
+  const hs = Object.assign({ showAnnouncement: false, announcementText: '', announcementType: 'info', showStats: true, showContact: false, hiddenGroups: [] }, d.homepageSettings || {});
+  const msg = req.query.msg ? `<div class="alert alert-success">${decodeURIComponent(req.query.msg)}</div>` : '';
+  const hiddenSet = new Set((hs.hiddenGroups || []).map(Number));
+  const rootGroups = d.reportGroups.filter(g => !g.parentId);
+  const groupChecks = rootGroups.map(g => `
+    <label style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f0f0f0;cursor:pointer;font-size:13px;">
+      <input type="checkbox" name="hiddenGroups" value="${g.id}" ${hiddenSet.has(g.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:#1a3a8f;">
+      <span>${g.icon||'📊'}</span>
+      <span style="font-weight:600;">${g.name}</span>
+      <span style="color:#aaa;font-size:11px;">${g.description||''}</span>
+    </label>`).join('');
+  const body = `
+    ${msg}
+    <div class="page-title">🏠 Ana Sayfa Düzeni</div>
+    <form method="POST" action="/admin/homepage/save">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="admin-panel-grid">
+
+        <div class="form-card" style="margin-bottom:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a3a8f;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #e8eaf6;">📢 Duyuru Bandı</div>
+          <div class="form-row" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <input type="checkbox" id="showAnn" name="showAnnouncement" value="1" ${hs.showAnnouncement ? 'checked' : ''} style="width:18px;height:18px;accent-color:#1a3a8f;">
+            <label for="showAnn" style="font-size:13px;font-weight:600;cursor:pointer;">Ana sayfada duyuru göster</label>
+          </div>
+          <div class="form-row">
+            <label>Duyuru Mesajı</label>
+            <textarea name="announcementText" rows="3" placeholder="Duyuru metnini buraya yazın...">${hs.announcementText||''}</textarea>
+          </div>
+          <div class="form-row">
+            <label>Duyuru Türü</label>
+            <select name="announcementType" style="width:100%;padding:10px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;">
+              <option value="info" ${hs.announcementType==='info'?'selected':''}>ℹ️ Bilgi (Mavi)</option>
+              <option value="success" ${hs.announcementType==='success'?'selected':''}>✅ Başarı (Yeşil)</option>
+              <option value="warning" ${hs.announcementType==='warning'?'selected':''}>⚠️ Uyarı (Sarı)</option>
+              <option value="danger" ${hs.announcementType==='danger'?'selected':''}>🔴 Tehlike (Kırmızı)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-card" style="margin-bottom:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a3a8f;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #e8eaf6;">🧩 Widget Seçimi</div>
+          <div class="form-row" style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+            <input type="checkbox" id="showStats" name="showStats" value="1" ${hs.showStats ? 'checked' : ''} style="width:18px;height:18px;accent-color:#1a3a8f;">
+            <label for="showStats" style="font-size:13px;cursor:pointer;">📊 <strong>İstatistik Kartları</strong> <span style="color:#aaa;font-size:11px;">(Grup ve rapor sayısı)</span></label>
+          </div>
+          <div class="form-row" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="showContact" name="showContact" value="1" ${hs.showContact ? 'checked' : ''} style="width:18px;height:18px;accent-color:#1a3a8f;">
+            <label for="showContact" style="font-size:13px;cursor:pointer;">📞 <strong>İletişim Özeti</strong> <span style="color:#aaa;font-size:11px;">(Yönetici ve iletişim bilgisi)</span></label>
+          </div>
+        </div>
+
+        <div class="form-card" style="grid-column:1/-1;margin-bottom:0;">
+          <div style="font-size:13px;font-weight:700;color:#1a3a8f;margin-bottom:6px;padding-bottom:10px;border-bottom:2px solid #e8eaf6;">🙈 Gizlenecek Gruplar <span style="font-size:11px;color:#aaa;font-weight:400;">(işaretlenenler ana sayfada görünmez)</span></div>
+          ${rootGroups.length === 0 ? '<p style="color:#aaa;font-size:13px;padding:12px 0;">Henüz rapor grubu yok.</p>' : groupChecks}
+        </div>
+
+      </div>
+      <div style="display:flex;gap:10px;margin-top:20px;">
+        <button type="submit" class="btn btn-primary">💾 Kaydet</button>
+        <a href="/" class="btn btn-secondary" target="_blank">👁 Ana Sayfayı Görüntüle</a>
+        <a href="/admin" class="btn btn-secondary">İptal</a>
+      </div>
+    </form>`;
+  res.send(layout('Ana Sayfa Düzeni', `<a href="/">Ana Sayfa</a> <span>›</span> <a href="/admin">Admin</a> <span>›</span> Ana Sayfa Düzeni`, body, req.session));
+});
+
+app.post('/admin/homepage/save', auth, adminOnly, (req, res) => {
+  const d = loadData();
+  const hiddenGroups = req.body.hiddenGroups
+    ? (Array.isArray(req.body.hiddenGroups) ? req.body.hiddenGroups : [req.body.hiddenGroups]).map(Number)
+    : [];
+  d.homepageSettings = {
+    showAnnouncement: req.body.showAnnouncement === '1',
+    announcementText: req.body.announcementText || '',
+    announcementType: req.body.announcementType || 'info',
+    showStats: req.body.showStats === '1',
+    showContact: req.body.showContact === '1',
+    hiddenGroups,
+  };
+  saveData(d);
+  res.redirect('/admin/homepage?msg=' + encodeURIComponent('Ana sayfa ayarları kaydedildi.'));
 });
 
 // ── RAPOR GRUBU INDEX ────────────────────────────────────────────────
@@ -1124,6 +1247,10 @@ app.get('/admin', auth, adminOnly, (req, res) => {
       <a href="/admin/contact" class="menu-card" style="border-left-color:#00838f;">
         <div class="icon">📞</div><div class="title">İletişim Bilgileri</div>
         <div class="desc">Yönetici, telefon ve e-posta bilgilerini düzenle</div>
+      </a>
+      <a href="/admin/homepage" class="menu-card" style="border-left-color:#f57f17;">
+        <div class="icon">🏠</div><div class="title">Ana Sayfa Düzeni</div>
+        <div class="desc">Duyuru, istatistik, iletişim ve gizli grupları ayarla</div>
       </a>
     </div>`;
   res.send(layout('Admin Panel', `<a href="/">Ana Sayfa</a> <span>›</span> Admin Panel`, body, req.session));
