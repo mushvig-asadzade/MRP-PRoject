@@ -164,7 +164,6 @@ const CSS = `
   .logout-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;padding:6px 14px;border-radius:7px;font-size:11px;cursor:pointer;text-decoration:none;transition:all 0.2s;}
   .logout-btn:hover{background:rgba(255,255,255,0.2);}
   .app-body{display:flex;flex:1;}
-  aside{width:240px;background:white;box-shadow:2px 0 8px rgba(0,0,0,0.06);padding:20px 0;flex-shrink:0;overflow-y:auto;}
   .side-section{padding:0 16px;margin-bottom:6px;}
   .side-section-title{font-size:9px;font-weight:700;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;padding:8px 10px 4px;}
   .side-item{display:block;padding:9px 12px;border-radius:8px;font-size:12.5px;color:#444;text-decoration:none;transition:all 0.15s;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;}
@@ -279,19 +278,22 @@ const CSS = `
   .col-item{display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12px;cursor:pointer;user-select:none;}
   .col-item:hover{color:#1a3a8f;}
   .col-panel-footer{padding:8px 12px;border-top:1px solid #f0f0f0;display:flex;gap:6px;}
-  /* MOBILE */
-  .mob-menu-btn{display:none;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;}
+  /* SIDEBAR TOGGLE */
+  .mob-menu-btn{display:flex;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;transition:background 0.2s;}
+  .mob-menu-btn:hover{background:rgba(255,255,255,0.22);}
+  aside{width:240px;background:white;box-shadow:2px 0 8px rgba(0,0,0,0.06);padding:20px 0;flex-shrink:0;overflow-y:auto;overflow-x:hidden;transition:width 0.25s ease,padding 0.25s ease;}
+  aside.closed{width:0;padding:0;}
   .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:999;}
   .sidebar-overlay.open{display:block;}
   @media(max-width:768px){
-    .mob-menu-btn{display:flex;}
     header{padding:10px 14px;}
     .logo{width:38px;height:38px;} .logo img{width:38px!important;height:38px!important;}
     .logo-text h1{font-size:15px;letter-spacing:2px;} .logo-text p{display:none;}
     .user-badge{display:none;}
     .logout-btn{padding:5px 11px;font-size:11px;}
-    aside{position:fixed;left:0;top:0;bottom:0;z-index:1000;transform:translateX(-100%);transition:transform 0.25s ease;width:260px;padding-top:16px;}
-    aside.open{transform:translateX(0);}
+    aside{position:fixed;left:0;top:0;bottom:0;z-index:1000;width:260px!important;padding:16px 0!important;transform:translateX(-100%);transition:transform 0.25s ease;}
+    aside.closed{transform:translateX(-100%)!important;}
+    aside.open{transform:translateX(0)!important;}
     main{padding:14px 14px;}
     .breadcrumb{font-size:10px;margin-bottom:10px;}
     .page-title{font-size:16px;margin-bottom:14px;flex-wrap:wrap;gap:6px;}
@@ -386,16 +388,29 @@ function layout(title, breadcrumb, body, sess) {
   </main>
 </div>
 <script>
+var isMob=function(){return window.innerWidth<=768;};
 function toggleSidebar(){
-  const s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
-  s.classList.toggle('open');o.classList.toggle('open');
+  var s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
+  if(isMob()){
+    var open=s.classList.toggle('open');
+    s.classList.remove('closed');
+    o.classList.toggle('open',open);
+  } else {
+    var closed=s.classList.toggle('closed');
+    localStorage.setItem('sidebarClosed',closed?'1':'0');
+  }
 }
 function closeSidebarOnMain(){
-  if(window.innerWidth<=768){
-    const s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
+  if(isMob()){
+    var s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
     s.classList.remove('open');o.classList.remove('open');
   }
 }
+(function(){
+  if(!isMob() && localStorage.getItem('sidebarClosed')==='1'){
+    document.getElementById('sidebar').classList.add('closed');
+  }
+})();
 </script>
 </body></html>`;
 }
