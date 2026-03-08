@@ -510,19 +510,18 @@ function layout(title, breadcrumb, body, sess) {
   reset();
 })();
 var isMob=function(){return window.innerWidth<=768;};
+var _SB_W=240;
 function updateToggleTab(){
   var s=document.getElementById('sidebar'),tab=document.getElementById('sideToggleTab'),ico=document.getElementById('sideToggleIcon');
   if(!tab||isMob()) return;
   var closed=s.classList.contains('closed');
   if(ico) ico.style.transform=closed?'rotate(180deg)':'rotate(0deg)';
-  tab.style.left=closed?'8px':((s.offsetWidth-16)+'px');
+  var w=closed?0:(_SB_W||240);
+  tab.style.left=Math.max(8,w-16)+'px';
 }
 function positionToggleTab(){
   var tab=document.getElementById('sideToggleTab'),pt=document.querySelector('.page-title');
-  if(tab&&pt){
-    var r=pt.getBoundingClientRect();
-    tab.style.top=(r.top+window.scrollY+2)+'px';
-  }
+  if(tab&&pt){var r=pt.getBoundingClientRect();tab.style.top=(r.top+window.scrollY+2)+'px';}
   updateToggleTab();
 }
 function toggleSidebar(){
@@ -544,10 +543,12 @@ function closeSidebarOnMain(){
   }
 }
 (function(){
-  if(!isMob() && localStorage.getItem('sidebarClosed')==='1'){
-    document.getElementById('sidebar').classList.add('closed');
-  }
-  positionToggleTab();
+  var s=document.getElementById('sidebar');
+  if(!isMob() && localStorage.getItem('sidebarClosed')==='1') s.classList.add('closed');
+  requestAnimationFrame(function(){
+    _SB_W=document.getElementById('sidebar').scrollWidth||240;
+    positionToggleTab();
+  });
 })();
 </script>
 </body></html>`;
