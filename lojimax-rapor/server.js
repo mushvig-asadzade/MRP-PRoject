@@ -618,7 +618,7 @@ app.get('/', auth, (req, res) => {
   });
   const hiddenSet = new Set((hs.hiddenGroups || []).map(Number));
   const groupCards = d.reportGroups
-    .filter(g => !hiddenSet.has(g.id) && visibleReports.some(r => r.groupId === g.id))
+    .filter(g => !g.parentId && !hiddenSet.has(g.id) && visibleReports.some(r => r.groupId === g.id))
     .map(g => `<a href="/raporlar/grup/${g.id}" class="menu-card"><div class="icon">${g.icon||'📊'}</div><div class="title">${g.name}</div><div class="desc">${g.description||''}</div></a>`).join('');
 
   const annColors = { info: { bg: '#e3f2fd', border: '#1e88e5', col: '#0d47a1', icon: 'ℹ️' }, warning: { bg: '#fff8e1', border: '#ffa000', col: '#e65100', icon: '⚠️' }, success: { bg: '#e8f5e9', border: '#43a047', col: '#1b5e20', icon: '✅' }, danger: { bg: '#ffebee', border: '#e53935', col: '#b71c1c', icon: '🔴' } };
