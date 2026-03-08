@@ -558,17 +558,33 @@ app.get('/raporlar/grup/:id', auth, (req, res) => {
   const d   = loadData();
   const grp = d.reportGroups.find(g => g.id === parseInt(req.params.id));
   if (!grp) return res.redirect('/');
-  const reports = d.reports.filter(r => r.groupId === grp.id && (
-    req.session.role === 'admin' || !r.allowedUsers || r.allowedUsers.length === 0 || r.allowedUsers.includes(req.session.user)
-  ));
-  const cards = reports.map(r => `
+  const canSee = r => req.session.role === 'admin' || !r.allowedUsers || r.allowedUsers.length === 0 || r.allowedUsers.includes(req.session.user);
+
+  // Direkt raporlar
+  const directReports = d.reports.filter(r => r.groupId === grp.id && canSee(r));
+  const directCards = directReports.map(r => `
     <a href="/raporlar/custom/${r.id}" class="menu-card">
-      <div class="icon">📊</div>
-      <div class="title">${r.name}</div>
-      <div class="desc">${r.description||''}</div>
+      <div class="icon">📊</div><div class="title">${r.name}</div><div class="desc">${r.description||''}</div>
     </a>`).join('');
+
+  // Alt gruplar ve raporları
+  const subGroups = d.reportGroups.filter(sg => sg.parentId === grp.id);
+  const subGroupsHtml = subGroups.map(sg => {
+    const sgReports = d.reports.filter(r => r.groupId === sg.id && canSee(r));
+    if (sgReports.length === 0) return '';
+    const sgCards = sgReports.map(r => `
+      <a href="/raporlar/custom/${r.id}" class="menu-card">
+        <div class="icon">📊</div><div class="title">${r.name}</div><div class="desc">${r.description||''}</div>
+      </a>`).join('');
+    return `<div class="section-hdr" style="margin-top:24px;">📁 ${sg.name}</div>
+      <div class="menu-grid">${sgCards}</div>`;
+  }).join('');
+
+  const hasContent = directCards || subGroupsHtml;
   const body = `<div class="page-title">${grp.icon||'📊'} ${grp.name}</div>
-    <div class="menu-grid">${cards || '<p style="color:#aaa;">Bu grupta henüz rapor yok.</p>'}</div>`;
+    ${directCards ? `<div class="menu-grid">${directCards}</div>` : ''}
+    ${subGroupsHtml}
+    ${!hasContent ? '<p style="color:#aaa;">Bu grupta henüz rapor yok.</p>' : ''}`;
   res.send(layout(grp.name, `<a href="/">Ana Sayfa</a> <span>›</span> ${grp.name}`, body, req.session));
 });
 
