@@ -337,8 +337,9 @@ const CSS = `
   .contact-val a{color:#1a3a8f;text-decoration:none;}
   .contact-val a:hover{text-decoration:underline;}
   /* SIDEBAR TOGGLE */
-  .mob-menu-btn{display:none;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:white;width:36px;height:36px;border-radius:8px;font-size:18px;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;transition:background 0.2s;}
-  .mob-menu-btn:hover{background:rgba(255,255,255,0.22);}
+  .mob-menu-btn{display:none;background:white;border:2px solid rgba(255,255,255,0.7);color:white;width:34px;height:34px;border-radius:50%;cursor:pointer;align-items:center;justify-content:center;flex-shrink:0;margin-right:8px;transition:background 0.2s,box-shadow 0.2s;box-shadow:0 2px 8px rgba(0,0,0,0.2);padding:0;outline:none;}
+  .mob-menu-btn:hover{background:#e8eaf6;box-shadow:0 4px 14px rgba(0,0,0,0.25);}
+  .mob-menu-btn svg{width:14px;height:14px;transition:transform 0.25s ease;}
   .side-toggle-tab{position:fixed;z-index:200;width:32px;height:32px;border-radius:50%;background:white;border:2px solid #1a3a8f;box-shadow:0 2px 10px rgba(26,58,143,0.25);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:left 0.25s ease,top 0.1s,background 0.2s,box-shadow 0.2s;outline:none;padding:0;}
   .side-toggle-tab:hover{background:#1a3a8f;box-shadow:0 4px 16px rgba(26,58,143,0.4);}
   .side-toggle-tab svg{width:14px;height:14px;transition:stroke 0.2s;}
@@ -448,7 +449,7 @@ function layout(title, breadcrumb, body, sess) {
 <body>
 <header>
   <div class="header-left">
-    <button class="mob-menu-btn" onclick="toggleSidebar()" aria-label="Menü">◄</button>
+    <button class="mob-menu-btn" id="mobMenuBtn" onclick="toggleSidebar()" aria-label="Menü"><svg id="mobMenuIcon" viewBox="0 0 24 24" fill="none" stroke="#1a3a8f" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg></button>
     <div class="logo"><img src="/logo" style="width:52px;height:52px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:22px;font-weight:900;color:white;&quot;>L</span>')"></div>
     <div class="logo-text"><h1>LOJIMAX</h1><p>RAPORLAMA SISTEMI</p></div>
   </div>
@@ -526,12 +527,19 @@ function positionToggleTab(){
   if(tab&&pt){var r=pt.getBoundingClientRect();tab.style.top=(r.top+window.scrollY+2)+'px';}
   updateToggleTab();
 }
+function updateMobIcon(){
+  var ico=document.getElementById('mobMenuIcon'),s=document.getElementById('sidebar');
+  if(!ico) return;
+  var open=s.classList.contains('open');
+  ico.style.transform=open?'rotate(180deg)':'rotate(0deg)';
+}
 function toggleSidebar(){
   var s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
   if(isMob()){
     var open=s.classList.toggle('open');
     s.classList.remove('closed');
     o.classList.toggle('open',open);
+    updateMobIcon();
   } else {
     var closed=s.classList.toggle('closed');
     localStorage.setItem('sidebarClosed',closed?'1':'0');
@@ -542,6 +550,7 @@ function closeSidebarOnMain(){
   if(isMob()){
     var s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
     s.classList.remove('open');o.classList.remove('open');
+    updateMobIcon();
   }
 }
 (function(){
