@@ -41,8 +41,17 @@ app.use(express.json());
 app.use(session({ secret: 'lojimax2026', resave: false, saveUninitialized: false }));
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────
+const IDLE_TIMEOUT = 20 * 60 * 1000; // 20 dakika
 const auth = (req, res, next) => {
-  if (req.session && req.session.user) return next();
+  if (req.session && req.session.user) {
+    const now = Date.now();
+    if (req.session.lastActivity && (now - req.session.lastActivity) > IDLE_TIMEOUT) {
+      req.session.destroy();
+      return res.redirect('/login?timeout=1');
+    }
+    req.session.lastActivity = now;
+    return next();
+  }
   res.redirect('/login');
 };
 const adminOnly = (req, res, next) => {
@@ -168,8 +177,9 @@ const CSS = `
   .side-section-title{font-size:9px;font-weight:700;color:#aaa;letter-spacing:1.5px;text-transform:uppercase;padding:8px 10px 4px;}
   .side-item{display:block;padding:9px 12px;border-radius:8px;font-size:12.5px;color:#444;text-decoration:none;transition:all 0.15s;cursor:pointer;border:none;background:transparent;width:100%;text-align:left;}
   .side-item:hover{background:#eef0f5;color:#0d1b6e;} .side-item.active{background:#e8eaf6;color:#0d1b6e;font-weight:600;}
-  .side-item.sub{padding-left:16px;} .side-item.sub2{padding-left:30px;font-size:11.5px;color:#666;}
-  .side-item.sub2.active{background:#e8eaf6;color:#0d1b6e;font-weight:600;} .side-group{margin-bottom:2px;}
+  .side-item.sub{padding-left:16px;} .side-item.sub2{padding-left:26px;font-size:12px;color:#555;}
+  .side-item.sub3{padding-left:38px;font-size:11.5px;color:#666;}
+  .side-item.sub2.active,.side-item.sub3.active{background:#e8eaf6;color:#0d1b6e;font-weight:600;} .side-group{margin-bottom:2px;}
   .side-divider{height:1px;background:#f0f0f0;margin:10px 16px;}
   main{flex:1;padding:24px 32px;overflow:auto;}
   .breadcrumb{font-size:11px;color:#999;margin-bottom:16px;display:flex;align-items:center;gap:6px;}
@@ -334,12 +344,26 @@ function layout(title, breadcrumb, body, sess) {
     return r.allowedUsers.includes(sess.user);
   });
   let customSidebar = '';
-  d.reportGroups.forEach(grp => {
+  const rootGroups = d.reportGroups.filter(g => !g.parentId);
+  const childGroups = d.reportGroups.filter(g => !!g.parentId);
+  rootGroups.forEach(grp => {
     const grpReports = visibleReports.filter(r => r.groupId === grp.id);
-    if (grpReports.length === 0) return;
+    const children = childGroups.filter(sg => sg.parentId === grp.id);
+    const hasChildren = children.some(sg => visibleReports.some(r => r.groupId === sg.id));
+    if (grpReports.length === 0 && !hasChildren) return;
+    let childHtml = '';
+    children.forEach(sg => {
+      const sgReports = visibleReports.filter(r => r.groupId === sg.id);
+      if (sgReports.length === 0) return;
+      childHtml += `<div class="side-group">
+        <a href="/raporlar/grup/${sg.id}" class="side-item sub2">📁 ${sg.name}</a>
+        ${sgReports.map(r => `<a href="/raporlar/custom/${r.id}" class="side-item sub3${title === r.name ? ' active' : ''}">└ ${r.name}</a>`).join('')}
+      </div>`;
+    });
     customSidebar += `<div class="side-group">
       <a href="/raporlar/grup/${grp.id}" class="side-item sub">${grp.icon || '📊'} ${grp.name}</a>
       ${grpReports.map(r => `<a href="/raporlar/custom/${r.id}" class="side-item sub2${title === r.name ? ' active' : ''}">└ ${r.name}</a>`).join('')}
+      ${childHtml}
     </div>`;
   });
   const adminSidebar = sess.role === 'admin' ? `
@@ -387,7 +411,40 @@ function layout(title, breadcrumb, body, sess) {
     ${body}
   </main>
 </div>
+<div id="_timeoutWarn" style="display:none;position:fixed;bottom:20px;right:20px;background:#c62828;color:white;border-radius:12px;padding:14px 20px;box-shadow:0 4px 20px rgba(0,0,0,0.3);z-index:99999;align-items:center;gap:14px;font-size:13px;max-width:320px;">
+  <span>⏱️ Oturum <strong id="_timeoutSecs">120</strong> saniye içinde sona erecek.</span>
+  <button onclick="_stayActive()" style="background:white;color:#c62828;border:none;border-radius:7px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;margin-left:6px;">Devam Et</button>
+</div>
 <script>
+(function(){
+  var TIMEOUT=20*60*1000, WARN=2*60*1000, timer, warnTimer, warned=false;
+  function reset(){
+    clearTimeout(timer); clearTimeout(warnTimer);
+    if(warned){document.getElementById('_timeoutWarn').style.display='none'; warned=false;}
+    timer=setTimeout(expire, TIMEOUT);
+    warnTimer=setTimeout(showWarn, TIMEOUT-WARN);
+  }
+  function showWarn(){
+    warned=true;
+    var el=document.getElementById('_timeoutWarn'); el.style.display='flex';
+    var sec=120, si=setInterval(function(){
+      sec--; var s=document.getElementById('_timeoutSecs'); if(s) s.textContent=sec;
+      if(sec<=0){clearInterval(si); expire();}
+    },1000);
+    el._si=si;
+  }
+  function expire(){ window.location='/login?timeout=1'; }
+  window._stayActive=function(){
+    var el=document.getElementById('_timeoutWarn');
+    if(el && el._si) clearInterval(el._si);
+    reset();
+    fetch('/api/ping').catch(function(){});
+  };
+  ['mousemove','keydown','click','touchstart'].forEach(function(e){
+    document.addEventListener(e,reset,{passive:true,capture:true});
+  });
+  reset();
+})();
 var isMob=function(){return window.innerWidth<=768;};
 function toggleSidebar(){
   var s=document.getElementById('sidebar'),o=document.getElementById('sidebarOverlay');
@@ -441,6 +498,7 @@ app.get('/login', (req, res) => {
     <div class="logo-icon"><img src="/logo" style="width:78px;height:78px;object-fit:contain;" onerror="this.style.display='none';this.insertAdjacentHTML('afterend','<span style=&quot;font-size:28px;font-weight:900;color:white;&quot;>L</span>')"></div>
     <h1>LOJİMAX</h1><p>RAPORLAMA SİSTEMİ</p>
   </div>
+  ${req.query.timeout ? '<div class="error">⏱️ Oturum süreniz doldu. Lütfen tekrar giriş yapın.</div>' : ''}
   ${req.query.err ? '<div class="error">Kullanıcı adı veya şifre hatalı.</div>' : ''}
   <form method="POST" action="/login">
     <label>Kullanıcı Adı</label>
@@ -468,6 +526,7 @@ app.post('/login', (req, res) => {
 });
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
+app.get('/api/ping', auth, (_req, res) => res.json({ ok: true }));
 
 // ── ANA SAYFA ─────────────────────────────────────────────────────────
 app.get('/', auth, (req, res) => {
@@ -1049,7 +1108,12 @@ const ICON_LIST = [
   { cat: 'Genel',              icons: ['📁','📂','📊','🗓️','🔖','📌','🔑','🌐','🏢','🎪'] },
 ];
 
-function groupForm(grp, action, title) {
+function groupForm(grp, action, title, allGroups) {
+  allGroups = allGroups || [];
+  const rootGroups = allGroups.filter(g => !g.parentId && g.id !== grp.id);
+  const parentOptions = rootGroups.map(g =>
+    `<option value="${g.id}"${grp.parentId === g.id ? ' selected' : ''}>${g.icon||'📊'} ${g.name}</option>`
+  ).join('');
   const selectedIcon = grp.icon || '📊';
   const iconSections = ICON_LIST.map(sec => `
     <div style="margin-bottom:10px;">
@@ -1067,6 +1131,9 @@ function groupForm(grp, action, title) {
       <form method="POST" action="${action}">
         <div class="form-row"><label>Grup Adı</label><input name="name" value="${grp.name||''}" required placeholder="Örn: Finans Raporları"></div>
         <div class="form-row"><label>Açıklama</label><input name="description" value="${grp.description||''}" placeholder="Kısa açıklama..."></div>
+        <div class="form-row"><label>Üst Grup <span style="font-weight:400;color:#aaa;">(isteğe bağlı — alt grup yapmak için seçin)</span></label>
+          <select name="parentId"><option value="">— Ana grup (üst grup yok) —</option>${parentOptions}</select>
+        </div>
         <div class="form-row">
           <label>İkon <span style="font-weight:400;color:#aaa;">— seçili: <span id="_selIconPreview" style="font-size:18px;">${selectedIcon}</span></span></label>
           <input type="hidden" name="icon" id="_iconVal" value="${selectedIcon}">
@@ -1094,13 +1161,15 @@ function groupForm(grp, action, title) {
 }
 
 app.get('/admin/report-groups/new', auth, adminOnly, (req, res) => {
-  const body = groupForm({}, '/admin/report-groups/create', '+ Yeni Rapor Grubu');
+  const d = loadData();
+  const body = groupForm({}, '/admin/report-groups/create', '+ Yeni Rapor Grubu', d.reportGroups);
   res.send(layout('Rapor Grupları', `<a href="/">Ana Sayfa</a> <span>›</span> <a href="/admin">Admin</a> <span>›</span> <a href="/admin/report-groups">Rapor Grupları</a> <span>›</span> Yeni`, body, req.session));
 });
 
 app.post('/admin/report-groups/create', auth, adminOnly, (req, res) => {
   const d = loadData();
-  d.reportGroups.push({ id: makeId(d), name: req.body.name, icon: req.body.icon||'📊', description: req.body.description||'' });
+  const parentId = req.body.parentId ? parseInt(req.body.parentId) : null;
+  d.reportGroups.push({ id: makeId(d), name: req.body.name, icon: req.body.icon||'📊', description: req.body.description||'', ...(parentId ? { parentId } : {}) });
   saveData(d);
   res.redirect('/admin/report-groups?msg=' + encodeURIComponent('Rapor grubu oluşturuldu.'));
 });
@@ -1109,7 +1178,7 @@ app.get('/admin/report-groups/:id/edit', auth, adminOnly, (req, res) => {
   const d   = loadData();
   const grp = d.reportGroups.find(g => g.id === parseInt(req.params.id));
   if (!grp) return res.redirect('/admin/report-groups');
-  const body = groupForm(grp, `/admin/report-groups/${grp.id}/update`, `✏️ Grup Düzenle: ${grp.name}`);
+  const body = groupForm(grp, `/admin/report-groups/${grp.id}/update`, `✏️ Grup Düzenle: ${grp.name}`, d.reportGroups);
   res.send(layout('Rapor Grupları', `<a href="/">Ana Sayfa</a> <span>›</span> <a href="/admin">Admin</a> <span>›</span> <a href="/admin/report-groups">Rapor Grupları</a> <span>›</span> Düzenle`, body, req.session));
 });
 
@@ -1120,6 +1189,8 @@ app.post('/admin/report-groups/:id/update', auth, adminOnly, (req, res) => {
   grp.name = req.body.name || grp.name;
   grp.icon = req.body.icon || grp.icon;
   grp.description = req.body.description || '';
+  const parentId = req.body.parentId ? parseInt(req.body.parentId) : null;
+  if (parentId) grp.parentId = parentId; else delete grp.parentId;
   saveData(d);
   res.redirect('/admin/report-groups?msg=' + encodeURIComponent('Grup güncellendi.'));
 });
